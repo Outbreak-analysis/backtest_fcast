@@ -34,19 +34,29 @@ idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
 bcktest <- bcktest[as.logical(idx)]
 n.bcktest <- length(bcktest)
 
-# Backtesting Parameters 
-file.prm.bcktst <- 'prm_backtest.csv'
-fpb <- read.csv(file.prm.bcktst,header = F)
-read_prm <- function(x){
-	as.numeric(as.character(fpb[as.character(fpb[,1])==x,2]))
+read_prm <- function(file,x){
+	f <- read.csv(file,header = F)
+	as.numeric(as.character(f[trimws(as.character(f[,1]))==x,2]))
 }
-horiz.forecast <- read_prm('horiz.forecast') 
-GI.bias        <- read_prm('GI.bias') 
-n.MC.max       <- read_prm('n.MC.max')
-CI             <- read_prm('CI') 
-multicores     <- read_prm('parallel')
-cori.window    <- read_prm('cori.window')
-rel.err        <- read_prm('relError')
+# Backtesting Parameters 
+fpb <- 'prm_backtest.csv'
+horizon        <- read_prm(fpb,'horizon') 
+horiz.fcast    <- read_prm(fpb,'horiz.fcast') 
+GI.bias        <- read_prm(fpb,'GI.bias') 
+n.MC.max       <- read_prm(fpb,'n.MC.max')
+CI             <- read_prm(fpb,'CI') 
+multicores     <- read_prm(fpb,'parallel')
+rel.err        <- read_prm(fpb,'relError')
+cori.window    <- read_prm(fpb,'cori.window') # <-- TO DO: should be in another file!
+
+# RESuDe parameters:
+fresude <- 'prm-resude.csv'
+GI_span         <- read_prm(file = fresude, x='GI_span')
+pop_size        <- read_prm(fresude,'pop_size')
+mcmc_iter       <- read_prm(fresude,'mcmc_iter')
+mcmc_nchains    <- read_prm(fresude,'mcmc_nchains')
+mcmc_diagnostic <- read_prm(fresude,'mcmc_diagnostic')
+
 
 ### 
 ### --- Run the backtesting ---
@@ -67,9 +77,10 @@ for(i in 1:n.bcktest){
 	
 	# Find time (after start date) 
 	# to truncate full data (to make forecasts):
-	ttrunc     <- ceiling(get.trunc.time(file = file.prm.bcktst,
+	ttrunc     <- ceiling(get.trunc.time(file = fpb,
 									 trueparam = trueparam))
-	# Parallel execution for a given scenario
+	# Parallel execution of the forecast
+	# for a given scenario
 	# across all MC realizations:
 	n.cores <- detectCores()
 	if(!multicores) n.cores <- 1
@@ -92,10 +103,16 @@ for(i in 1:n.bcktest){
 							 fcast.wrap.mc,
 							 dat.all     = dat.all,
 							 ttrunc      = ttrunc,
-							 horiz.fcast = horiz.forecast,
+							 horizon     = horizon,
+							 horiz.fcast = horiz.fcast,
 							 GI.mean     = GI.mean,
 							 GI.stdv     = GI.stdv,
 							 cori.window = cori.window,
+							 GI_span     = GI_span,
+							 pop_size    = pop_size,
+							 mcmc_iter   = mcmc_iter,
+							 mcmc_nchains    = mcmc_nchains,
+							 mcmc_diagnostic = mcmc_diagnostic,
 							 rel.err     = rel.err,
 							 do.plot     = (n.cores==1)
 	)

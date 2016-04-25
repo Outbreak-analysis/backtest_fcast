@@ -143,7 +143,7 @@ idea.fit.stoch <- function(inc, GI, I0,
 }
 
 idea.forecast <- function(data, 
-						  horiz.forecast, # how many time units ahead to forecast
+						  horiz.fcast, # how many time units ahead to forecast
 						  GI, 
 						  CI, # confidence interval of the forecasts
 						  ignore.data= 0, 
@@ -153,7 +153,7 @@ idea.forecast <- function(data,
 	
 	n.data <- length(data)
 	
-	t <- c(1:(n.data+horiz.forecast))
+	t <- c(1:(n.data+horiz.fcast))
 	
 	# Fit to data
 	if(!stoch){
@@ -182,7 +182,7 @@ idea.forecast <- function(data,
 	inc.idea <- tmp[["mean"]]
 	
 	# Keep only the forecasted points:
-	fcast.rng <- (n.data+1):(n.data+horiz.forecast)
+	fcast.rng <- (n.data+1):(n.data+horiz.fcast)
 	inc.fcast <- inc.idea[fcast.rng]
 	inc.fcast.lo <- tmp[["qlo"]][fcast.rng]
 	inc.fcast.hi <- tmp[["qhi"]][fcast.rng]
@@ -257,13 +257,13 @@ if(do.test){
 	
 	ignore.data <- 5
 	last.date <- 12
-	horiz.forecast <- 13
+	horiz.fcast <- 13
 	GI <- 4
 	
 	data  <- data.full$inc[1:last.date]
 	
 	x <- idea.forecast(data, 
-					   horiz.forecast,
+					   horiz.fcast,
 					   GI, 
 					   stoch = F,
 					   CI = 0.99999,

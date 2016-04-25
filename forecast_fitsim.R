@@ -2,6 +2,10 @@ library(R0)
 
 source("idea.R")
 
+source('../RESuDe_forecast/RESuDe_FCT.R')
+source('../RESuDe_forecast/fit_stan.R')
+source('../RESuDe_forecast/forecast.R')
+
 plot.GI <- function(g, GI.dist){
 	n <- length(g)
 	m <- sum(c(1:n)*g)
@@ -178,14 +182,13 @@ translate.model <- function(x){
 	return(res)
 }
 
-
 unpack.prm <- function(prms){
 	### Unpack parameters depending on model:
 	### WARNING: in GLOBAL environment
 	
 	model <<- prms[["model"]]
 	
-	pname <- c("dat","dat.full", "horiz.forecast",
+	pname <- c("dat","dat.full", "horiz.fcast",
 			   "GI.dist","GI.val","GI.truncate")
 	
 	pname.cori <- c("cori.window","cori.mean.prior","cori.std.prior",
@@ -194,11 +197,21 @@ unpack.prm <- function(prms){
 					"Min.Std.SI", "Max.Std.SI", 
 					"n.coriUnc.meanstdv", "n.coriUnc.postR")
 	
+	pname.resude <- c('pop_size', 'GI_span',
+					  'mcmc_iter', 'mcmc_nchains','mcmc_diagnostic')
+	
 	if(grepl("Cori",model)) pname <- c(pname,pname.cori)
+	if(model=='RESuDe')     pname <- c(pname,pname.resude)
+	
 	for(p in pname) assign(x = p,
 						   value = prms[[p]],
 						   envir = .GlobalEnv)
 }
+
+
+### - - - - - - - - - - - - - - - - -
+### - - - - FITTING FUNCTIONS - - - - 
+### - - - - - - - - - - - - - - - - -
 
 fit.renewal <- function(prms){
 	### FIT THE REPRODUCTIVE NUMBER
@@ -300,6 +313,118 @@ fit.renewal <- function(prms){
 				model = model))
 }
 
+fit.seqBay <- function(prms){
+	### FIT REPRODUCTIVE NUMBER 
+	### FOR SEQUENTIAL BAYESIAN METHOD
+	###
+	unpack.prm(prms)
+	stopifnot(model=='SeqBay')
+	model2 <- translate.model(model)
+	GI <- NULL
+	inc <- dat$inc
+	# R0 package:
+	# Create generation time 
+	GI <- generation.time(type     = GI.dist, 
+						  val      = GI.val,
+						  truncate = GI.truncate,
+						  step     = 1 )
+	# Estimate R:
+	# There is a conceptual problem with this model
+	# when incidence data = 0, because:
+	# I[t+1] ~ Poisson(*I[t])
+	# so when I[t]=0, probability(I[t+1]>0)=0
+	# (bc the poisson intensity is 0)
+	#
+	# So, try to go round this issue by
+	# artificially nudging incidence away from 0 (e.g. to 1)
+	if(any(inc==0)) {
+		warning("Incidence was changed for SeqBay method")
+		inc[inc==0] <- 1
+	}
+	
+	R <- estimate.R(epid    = inc,
+					GT      = GI, 
+					methods = model2)
+	
+	R.m <- R$estimates[[model2]]$R
+	# Take last estimate:
+	nr   <- length(R.m)
+	R.m  <- R.m[nr]
+	R.lo <- R$estimates[[model2]]$conf.int[nr,1]
+	R.hi <- R$estimates[[model2]]$conf.int[nr,2]
+	
+	return(list(R.m  = R.m, 
+				R.lo = R.lo, 
+				R.hi = R.hi,
+				R    = R,
+				GI   = GI,
+				model = model))
+}
+
+fit.resude <- function(prms) {
+	
+	# unpack paramters:
+	unpack.prm(prms)
+	
+	# forecasting horizon:
+	dat.obs  <- dat$inc
+	last.obs <- length(dat.obs)
+	
+	# Effective population bias:
+	bias.pop_size <- 1.0
+	# effective population bounds:
+	pop_mean <-  pop_size * bias.pop_size
+	pop_lsd  <-  2.0
+	pop_hi <- qlnorm(p=0.99, meanlog = log(pop_mean),sdlog = pop_lsd)
+	pop_lo <- qlnorm(p=0.01, meanlog = log(pop_mean),sdlog = pop_lsd)
+	pop_lo <- max(pop_lo,sum(dat.obs)+1)# <-- pop cannot be smaller than cumul incidence!
+	pop_hi <- round(pop_hi,0)
+	pop_lo <- round(pop_lo,0)
+	message(paste("\n\nEffective pop size:",pop_lo,"--",pop_mean,"--",pop_hi))
+	
+	# Define Stan's known data:
+	data.stan <- list(numobs   = last.obs,
+					  Iobs     = dat.obs,
+					  R0_lo    = 0.7,
+					  R0_hi    = 10,
+					  GI_meanlo= 1,
+					  GI_meanhi= 15,
+					  GI_varhi = 4,
+					  GI_varlo = 2,
+					  alpha_hi = 4, #alpha*1.001,
+					  alpha_lo = 0, #alpha*0.999,
+					  kappa_hi = 0.1,
+					  kappa_lo = 0,
+					  pop_hi   = pop_hi,
+					  pop_lo   = pop_lo, 
+					  pop_mean = pop_mean,
+					  pop_lsd  = pop_lsd,
+					  GI_span  = GI_span
+	)
+	
+	# Fit RESuDe model using Stan:
+	FIT <- RESuDe.fit.stan(model.filename = 'fit-resude.stan', 
+						   dat = data.stan, 
+						   n.iter = mcmc_iter, 
+						   n.chains = mcmc_nchains, 
+						   plot.compTruth = FALSE
+	) 
+	# Show diagnostic plots for Stan fit:
+	if(mcmc_diagnostic){
+		np <- names(FIT$prm.sample)
+		np <- np[np!="Iout"]
+		pairs(FIT$fit)	
+		np <- np[np!="lp__"]
+		traceplot(FIT$fit, pars=np, alpha=0.5,inc_warmup=TRUE)
+	}
+	return(FIT)
+}
+
+
+### - - - - - - - - - - - - - - - - -
+### - - - - SIMULATION FUNCTIONS - - - - 
+### - - - - - - - - - - - - - - - - -
+
 setup_GI_renewal <- function(model,GI, R){
 	g <- NULL
 	if(model %in% c("WalLip","WhiPag","SeqBay")){
@@ -328,14 +453,14 @@ setup_GI_renewal <- function(model,GI, R){
 simulateFwd_renewal <- function(obsinc, # observed incidence
 								g,
 								R.m,R.lo,R.hi,
-								horiz.forecast){
+								horiz.fcast){
 	
 	inc.f.m <- inc.f.lo <- inc.f.hi <- obsinc
 	n.i <- length(inc.f.m)
 	
 	# Apply renewal equation at each time step 
 	# until forecast horizon:
-	for(i in 1:horiz.forecast){
+	for(i in 1:horiz.fcast){
 		n.g2 <- min(length(g), n.i)
 		inc.rev.m <- rev(inc.f.m)[1:n.g2]
 		inc.rev.lo <- rev(inc.f.lo)[1:n.g2]
@@ -354,12 +479,12 @@ simulateFwd_renewal <- function(obsinc, # observed incidence
 simulateFwd_seqBay <- function(obsinc, # observed incidence
 							   GI,
 							   R.m,R.lo,R.hi,
-							   horiz.forecast){
+							   horiz.fcast){
 	# Apply the formula I(t+h) = exp(h*gamma(R-1))*I(t)
 	# from Bettencourt 2008 PLoS ONE
-	tmp.m  <- exp( (1:horiz.forecast)*(R.m-1.0)/GI$mean )
-	tmp.lo <- exp( (1:horiz.forecast)*(R.lo-1.0)/GI$mean )
-	tmp.hi <- exp( (1:horiz.forecast)*(R.hi-1.0)/GI$mean )
+	tmp.m  <- exp( (1:horiz.fcast)*(R.m-1.0)/GI$mean )
+	tmp.lo <- exp( (1:horiz.fcast)*(R.lo-1.0)/GI$mean )
+	tmp.hi <- exp( (1:horiz.fcast)*(R.hi-1.0)/GI$mean )
 	n.i <- length(obsinc)
 	inc.f.m  <- c(obsinc, obsinc[n.i] * tmp.m)
 	inc.f.lo <- c(obsinc, obsinc[n.i] * tmp.lo)
@@ -370,16 +495,62 @@ simulateFwd_seqBay <- function(obsinc, # observed incidence
 				inc.f.hi = inc.f.hi))
 }
 
+simulateFwd_RESuDe <- function(FIT, 
+							   horiz.fcast,
+							   GI_span){
+	
+	obs.inc <- FIT$prm.sample$Iout[1,]
+	last.obs <- length(obs.inc)
+	
+	FCAST <- RESuDe.forecast(prm = FIT$prm.sample, # <-- sampled parameter values after the fit
+							 fcast.horizon = horizon,
+							 pop_size = NULL,
+							 kappa = NULL, 
+							 alpha = NULL,
+							 GI_var= NULL,
+							 GI_span = GI_span, 
+							 last.obs = last.obs,
+							 syn.inc.full = NULL, 
+							 do.plot = FALSE,
+							 CI1 = 50, CI2 = 95,
+							 seed=123)
+	
+	inc.f.m  <- FCAST$fcast.cone[,3]
+	inc.f.lo <- FCAST$fcast.cone[,1]
+	inc.f.hi <- FCAST$fcast.cone[,5]
+	
+	inc.f.m  <- c(obs.inc,inc.f.m)
+	inc.f.lo <- c(obs.inc,inc.f.lo)
+	inc.f.hi <- c(obs.inc,inc.f.hi)
+	
+	return(list(inc.f.m  = inc.f.m,
+				inc.f.lo = inc.f.lo,
+				inc.f.hi = inc.f.hi,
+				inc.f.all = FCAST$sf))
+}
+
+### - - - - - - - - - - - - - - - - -
+### - - - -   FORECASTS   - - - - 
+### - - - - - - - - - - - - - - - - -
+
 fcast_incidence <- function(prms, do.plot=FALSE){
 	### FORECAST INCIDENCE WITH A CHOICE OF MODELS
-	### - EARLY IN THE OUTBREAK (MUST BE EXPONENTIAL PHASE)
-	### - FORCAST FOR A SHORT HORIZON ONLY
 	
 	unpack.prm(prms)
 	
-	# Fit basic renewal equation models:
-	if(model != 'IDEA'){
-		fit   <- fit.renewal(prms)
+	print(paste("DEBUG::",model))
+	
+	### Fit basic renewal equation models:
+	
+	if(model %in% c("WalLip","WhiPag") || grepl("Cori",model)){
+		fit <- fit.renewal(prms)	
+	} 
+	if(model %in% "SeqBay") fit <- fit.seqBay(prms)
+	if(model == "RESuDe") fit <- fit.resude(prms)
+	
+	### Retrieve fit results:
+	
+	if(model %in% c("SeqBay","WalLip","WhiPag")|| grepl("Cori",model)){
 		R.m   <- fit[["R.m"]]
 		R.lo  <- fit[["R.lo"]]
 		R.hi  <- fit[["R.hi"]]
@@ -390,33 +561,46 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		GI.dist <- gitmp[["GI.dist"]]
 		g       <- gitmp[["g"]]
 	}
+	if(model=="RESuDe"){
+		R <- fit$prm.sample$R0
+		R.lo <- quantile(R,probs = 0.5-CI/2)
+		R.hi <- quantile(R,probs = 0.5+CI/2)
+		R.m  <- median(R)
+	}
 	
 	### Simulate forward (with fitted model parameters)
 	
 	inc.f.m <- inc.f.lo <- inc.f.hi <- dat$inc
 	n.i <- length(inc.f.m)
 	
-	if(model %in% c("WalLip","WhiPag") || 
-	   grepl("Cori",model)){
+	if(model %in% c("WalLip","WhiPag") || grepl("Cori",model)){
 		sim <- simulateFwd_renewal(obsinc = dat$inc, # observed incidence
 								   g,
 								   R.m, R.lo, R.hi,
-								   horiz.forecast)
+								   horiz.fcast)
 	}
 	if(model %in% c("SeqBay")){
 		sim <- simulateFwd_seqBay(obsinc = dat$inc, 
-								  GI, R.m, R.lo, R.hi, horiz.forecast)
+								  GI, R.m, R.lo, R.hi, horiz.fcast)
 	}
 	
 	if (model=="IDEA") {
+		### IDEA impementation fit 
+		### and forecast at the same time
 		sim <- idea.forecast(data = dat$inc,
 							 stoch = F,
 							 CI = 0.999,
-							 horiz.forecast = horiz.forecast,
+							 horiz.fcast = horiz.fcast,
 							 GI = GI.val[1],
 							 ignore.data = 1)
 		
 		R <- R.m <- R.hi <- R.lo <- sim[["R0"]]
+	}
+	
+	if(model=='RESuDe'){
+		sim <- simulateFwd_RESuDe(FIT = fit,
+								  horiz.fcast = horiz.fcast,
+								  GI_span = GI_span)
 	}
 	
 	### Retrieve all simulated incidences:
@@ -429,7 +613,7 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 					 round(R.lo,2),";",
 					 round(R.hi,2),")")
 	
-	# ==== Plots ====
+	#  - - - Plots - - -
 	if (do.plot){
 		par(mfrow=c(3,2))
 		try(plot.exp.phase(dat),silent = T)

@@ -76,53 +76,76 @@ compare.fcast.early.shiny <- function(fcast, dolog){
 
 create.model.prm <- function(dat,
 							 dat.full,
-							 horiz.forecast ,  
+							 horizon,
+							 horiz.fcast ,  
 							 GI.mean,GI.stdv,
 							 GI.dist,
-							 cori.window){
+							 cori.window,
+							 GI_span,
+							 pop_size,
+							 mcmc_iter,
+							 mcmc_nchains,
+							 mcmc_diagnostic){
 	
 	PRM <- list(Cori = list(model = "CoriParam",  
 							dat = dat,
 							dat.full = dat.full,
-							horiz.forecast = horiz.forecast,  
+							horiz.fcast = horiz.fcast,  
 							GI.val = c(GI.mean,GI.stdv),
 							cori.window = cori.window),
 				
 				WalLip = list(model = "WalLip",
 							  dat = dat,
 							  dat.full = dat.full,
-							  horiz.forecast = horiz.forecast,  
+							  horiz.fcast = horiz.fcast,  
 							  GI.dist = "gamma",  # gamma, lognormal, weibull
 							  GI.val = c(GI.mean,GI.stdv)),
 				
 				WhiPag = list(model = "WhiPag",
 							  dat = dat,
 							  dat.full = dat.full,
-							  horiz.forecast = horiz.forecast,  
+							  horiz.fcast = horiz.fcast,  
 							  GI.dist = "gamma",  # gamma, lognormal, weibull
 							  GI.val = c(GI.mean,GI.stdv)),
 				
 				SeqBay = list(model = "SeqBay",
 							  dat = dat,
 							  dat.full = dat.full,
-							  horiz.forecast = horiz.forecast,  
+							  horiz.fcast = horiz.fcast,  
 							  GI.dist = "gamma",  # gamma, lognormal, weibull
 							  GI.val = c(GI.mean,GI.stdv))
 				,
 				IDEA = list(model = "IDEA",
 							dat = dat,
 							dat.full = dat.full,
-							horiz.forecast = horiz.forecast,  
+							horiz.fcast = horiz.fcast,  
 							GI.val = GI.mean)
+				,
+				RESuDe = list(model = "RESuDe",
+							  dat = dat,
+							  dat.full = dat.full,
+							  horizon = horizon,
+							  horiz.fcast = horiz.fcast,
+							  GI_span = GI_span,
+							  pop_size = pop_size,
+							  mcmc_iter = mcmc_iter,
+							  mcmc_nchains = mcmc_nchains,
+							  mcmc_diagnostic = mcmc_diagnostic)
 	)
 	return(PRM)
 }
 
 fcast.wrap.mc <- function(m, dat.all,
 						  ttrunc,
+						  horizon,
 						  horiz.fcast,
 						  GI.mean,GI.stdv,
 						  cori.window,
+						  GI_span,
+						  pop_size,
+						  mcmc_iter,
+						  mcmc_nchains,
+						  mcmc_diagnostic,
 						  rel.err,
 						  do.plot){
 	
@@ -141,11 +164,17 @@ fcast.wrap.mc <- function(m, dat.all,
 	# Set parameters for every models:
 	PRM <- create.model.prm(dat = dat.chopped,
 							dat.full = dat.no.trunc,
-							horiz.forecast = horiz.fcast,  
+							horizon        = horizon,
+							horiz.fcast = horiz.fcast,  
 							GI.mean = as.numeric(GI.mean), 
 							GI.stdv = as.numeric(GI.stdv),
 							GI.dist =  "gamma",
-							cori.window = cori.window)
+							cori.window = cori.window,
+							GI_span = GI_span,
+							pop_size = pop_size,
+							mcmc_iter = mcmc_iter,
+							mcmc_nchains = mcmc_nchains,
+							mcmc_diagnostic = mcmc_diagnostic)
 	# Forecast:
 	fcast <- try(lapply(PRM,
 						fcast_incidence,
