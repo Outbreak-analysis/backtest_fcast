@@ -121,7 +121,7 @@ for(i in 1:n.bcktest){
 	sfStop()
 
 	### Calculate scores
-	sc.tmp[[i]] <- calc.scores(res.parallel,rel.err)
+	sc.tmp[[i]] <- calc.scores(res.parallel, horiz.fcast, rel.err)
 	
 	sc.tmp[[i]]$modelsyndata <- substr(x = source, start = 1, stop=6)
 	sc.tmp[[i]]$source       <- source
@@ -132,6 +132,7 @@ for(i in 1:n.bcktest){
 # Merge and summarize scores for 
 # all bactesting scenarios:
 scsum <- merge.sum.scores(sc.tmp,CI)
+
 # Plot:
 plot.scores(scsum)
 

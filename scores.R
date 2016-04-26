@@ -1,4 +1,4 @@
-scores.fcast <- function(fcast, rel.err = FALSE){
+scores.fcast <- function(fcast, horiz.fcast, rel.err = FALSE){
 	
 	M <- length(fcast) # Number of models
 	ME <- vector(length = M) # Mean Error
@@ -7,25 +7,24 @@ scores.fcast <- function(fcast, rel.err = FALSE){
 	
 	for(i in 1:M){
 		x <- fcast[[i]]
-		tg <- x$target.dat
-		n.tg <- length(tg)
-		n.f <- length(x$inc.f.m)  
+		tg  <- x$target.dat[1:horiz.fcast]
+		obs <- x$obs.dat
+		n.obs <- length(obs)
 		# Mean and quantiles of forecasts
-		frng <- (n.f-n.tg+1):n.f
-		n <- length(frng) # number of actual forecasts
-		fm <- x$inc.f.m[frng]
+		frng <- (n.obs+1):(n.obs+horiz.fcast)#(n.f-horiz.fcast+1):n.f
+		fm  <- x$inc.f.m[frng]
 		flo <- x$inc.f.lo[frng]
 		fhi <- x$inc.f.hi[frng]
 		if(rel.err){
 			tg[tg==0] <- 1 
-			ME[i] <- sum(fm/tg-1)/n
-			MAE[i] <- sum(abs(fm/tg-1))/n
-			MQE[i] <- sum(max(flo/tg-1,0))/n + sum(max(1-fhi/tg,0))/n 
+			ME[i]  <- sum(fm/tg-1)/horiz.fcast
+			MAE[i] <- sum(abs(fm/tg-1))/horiz.fcast
+			MQE[i] <- sum(max(flo/tg-1,0))/horiz.fcast + sum(max(1-fhi/tg,0))/horiz.fcast 
 		}
 		if(!rel.err){
-			ME[i] <- sum(fm-tg)/n
-			MAE[i] <- sum(abs(fm-tg))/n
-			MQE[i] <- sum(max(flo-tg,0))/n + sum(max(tg-fhi,0))/n 
+			ME[i]  <- sum(fm-tg)/horiz.fcast
+			MAE[i] <- sum(abs(fm-tg))/horiz.fcast
+			MQE[i] <- sum(max(flo-tg,0))/horiz.fcast + sum(max(tg-fhi,0))/horiz.fcast 
 		}
 	}
 	df <- data.frame(model=names(fcast),ME,MAE,MQE)
@@ -33,12 +32,13 @@ scores.fcast <- function(fcast, rel.err = FALSE){
 }
 
 
-calc.scores <- function(res.parallel, rel.err) {
+calc.scores <- function(res.parallel, horiz.fcast, rel.err) {
 	
 	df.tmp <- list()
 	for(k in 1:length(res.parallel)){
 		if(class(res.parallel[[k]])!="try-error"){
 			df.tmp[[k]] <- scores.fcast(fcast = res.parallel[[k]],
+										horiz.fcast = horiz.fcast, 
 										rel.err = TRUE)
 			df.tmp[[k]]$mc <- k
 		}

@@ -1,4 +1,4 @@
-iter, 400
+iter, 5000
 nchains, 3
 diagnostic,0
 

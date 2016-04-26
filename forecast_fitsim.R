@@ -404,10 +404,10 @@ fit.resude <- function(prms) {
 	
 	# Fit RESuDe model using Stan:
 	FIT <- RESuDe.fit.stan(model.filename = 'fit-resude.stan', 
-						   dat = data.stan, 
-						   n.iter = mcmc_iter, 
+						   dat      = data.stan, 
+						   n.iter   = mcmc_iter, 
 						   n.chains = mcmc_nchains,
-						   #n.cores = 1,
+						   #n.cores = floor(parallel::detectCores()/2),
 						   plot.compTruth = FALSE
 	) 
 	# Show diagnostic plots for Stan fit:
@@ -521,9 +521,10 @@ simulateFwd_RESuDe <- function(FIT,
 	inc.f.hi <- FCAST$fcast.cone[,5]
 	
 	nobs <- length(obs.inc)
-	inc.f.m  <- c(obs.inc,inc.f.m[(nobs+1):(nobs+horiz.fcast)])
-	inc.f.lo <- c(obs.inc,inc.f.lo[(nobs+1):(nobs+horiz.fcast)])
-	inc.f.hi <- c(obs.inc,inc.f.hi[(nobs+1):(nobs+horiz.fcast)])
+	nfor <- length(inc.f.m)
+	inc.f.m  <- c(obs.inc,inc.f.m[(nobs+1):nfor])#c(obs.inc,inc.f.m[(nobs+1):(nobs+horiz.fcast)])
+	inc.f.lo <- c(obs.inc,inc.f.lo[(nobs+1):nfor])#c(obs.inc,inc.f.lo[(nobs+1):(nobs+horiz.fcast)])
+	inc.f.hi <- c(obs.inc,inc.f.hi[(nobs+1):nfor])#c(obs.inc,inc.f.hi[(nobs+1):(nobs+horiz.fcast)])
 	
 	return(list(inc.f.m  = inc.f.m,
 				inc.f.lo = inc.f.lo,
