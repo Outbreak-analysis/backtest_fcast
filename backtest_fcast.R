@@ -29,8 +29,9 @@ syn.models <- list("SEmInR", "RESuDe")
 # Identify the source names of  synthetic data
 db.path <- "../Datsid/bcktest.db"
 bcktest <- get.list.sources(db.path = db.path)
-idx <- lapply(syn.models, grepl,x = bcktest )
+idx <- lapply(syn.models, grepl, x = bcktest)
 idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
+# DEBUG bcktest <- bcktest[12:13]
 bcktest <- bcktest[as.logical(idx)]
 n.bcktest <- length(bcktest)
 
@@ -87,6 +88,7 @@ for(i in 1:n.bcktest){
 	sfInit(parallel = (n.cores>1), 
 		   cpu = n.cores)
 	sfLibrary(R0)
+	sfLibrary(rstan)
 	if(!use.DC.version.of.EpiEstim) sfLibrary(EpiEstim)
 	
 	idx.apply <- mcvec
@@ -119,7 +121,7 @@ for(i in 1:n.bcktest){
 	sfStop()
 
 	### Calculate scores
-	sc.tmp[[i]] <- calc.scores(res.parallel,re.err)
+	sc.tmp[[i]] <- calc.scores(res.parallel,rel.err)
 	
 	sc.tmp[[i]]$modelsyndata <- substr(x = source, start = 1, stop=6)
 	sc.tmp[[i]]$source       <- source

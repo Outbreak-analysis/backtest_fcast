@@ -406,7 +406,8 @@ fit.resude <- function(prms) {
 	FIT <- RESuDe.fit.stan(model.filename = 'fit-resude.stan', 
 						   dat = data.stan, 
 						   n.iter = mcmc_iter, 
-						   n.chains = mcmc_nchains, 
+						   n.chains = mcmc_nchains,
+						   #n.cores = 1,
 						   plot.compTruth = FALSE
 	) 
 	# Show diagnostic plots for Stan fit:
@@ -519,9 +520,10 @@ simulateFwd_RESuDe <- function(FIT,
 	inc.f.lo <- FCAST$fcast.cone[,1]
 	inc.f.hi <- FCAST$fcast.cone[,5]
 	
-	inc.f.m  <- c(obs.inc,inc.f.m)
-	inc.f.lo <- c(obs.inc,inc.f.lo)
-	inc.f.hi <- c(obs.inc,inc.f.hi)
+	nobs <- length(obs.inc)
+	inc.f.m  <- c(obs.inc,inc.f.m[(nobs+1):(nobs+horiz.fcast)])
+	inc.f.lo <- c(obs.inc,inc.f.lo[(nobs+1):(nobs+horiz.fcast)])
+	inc.f.hi <- c(obs.inc,inc.f.hi[(nobs+1):(nobs+horiz.fcast)])
 	
 	return(list(inc.f.m  = inc.f.m,
 				inc.f.lo = inc.f.lo,
