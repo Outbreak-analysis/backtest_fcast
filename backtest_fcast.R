@@ -23,7 +23,7 @@ source("forecast_fitsim.R")
 source("forecast_utils.R")
 source("scores.R")
 
-# Models used to generate synthetic data:
+# Models that generated synthetic data:
 syn.models <- list("SEmInR", "RESuDe")
 
 # Identify the source names of  synthetic data
@@ -40,7 +40,7 @@ read_prm <- function(file,x){
 	as.numeric(as.character(f[trimws(as.character(f[,1]))==x,2]))
 }
 # Backtesting Parameters 
-fpb <- 'prm_backtest.csv'
+fpb            <- 'prm_backtest.csv'
 horizon        <- read_prm(fpb,'horizon') 
 horiz.fcast    <- read_prm(fpb,'horiz.fcast') 
 GI.bias        <- read_prm(fpb,'GI.bias') 
@@ -93,6 +93,7 @@ for(i in 1:n.bcktest){
 	
 	idx.apply <- mcvec
 	message(paste("Synthetic data contains",length(idx.apply),"MC iterations"))
+	
 	# Reduce backtesting to 
 	# specified MC realizations:
 	if(n.MC.max>0) {

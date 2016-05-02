@@ -1,10 +1,12 @@
 library(R0)
 
 source("idea.R")
-
 source('../RESuDe_forecast/RESuDe_FCT.R')
 source('../RESuDe_forecast/fit_stan.R')
 source('../RESuDe_forecast/forecast.R')
+source("../SEmInR/SEmInR_deterministic.R")
+source("../SEmInR/SEmInR_deterministic_fit_mle.R")
+
 
 plot.GI <- function(g, GI.dist){
 	n <- length(g)
@@ -468,9 +470,9 @@ simulateFwd_renewal <- function(obsinc, # observed incidence
 		inc.rev.hi <- rev(inc.f.hi)[1:n.g2]
 		
 		# renewal equation:
-		inc.f.m <- c(inc.f.m, R.m*sum(g[1:n.g2]*inc.rev.m[1:n.g2]))
-		inc.f.lo <- c(inc.f.lo, R.lo*sum(g[1:n.g2]*inc.rev.lo[1:n.g2]))
-		inc.f.hi <- c(inc.f.hi, R.hi*sum(g[1:n.g2]*inc.rev.hi[1:n.g2]))
+		inc.f.m  <- c(inc.f.m,  R.m  * sum(g[1:n.g2] * inc.rev.m[1:n.g2]))
+		inc.f.lo <- c(inc.f.lo, R.lo * sum(g[1:n.g2] * inc.rev.lo[1:n.g2]))
+		inc.f.hi <- c(inc.f.hi, R.hi * sum(g[1:n.g2] * inc.rev.hi[1:n.g2]))
 	}
 	return(list(inc.f.m=inc.f.m,
 				inc.f.lo=inc.f.lo,
@@ -483,10 +485,10 @@ simulateFwd_seqBay <- function(obsinc, # observed incidence
 							   horiz.fcast){
 	# Apply the formula I(t+h) = exp(h*gamma(R-1))*I(t)
 	# from Bettencourt 2008 PLoS ONE
+	n.i <- length(obsinc)
 	tmp.m  <- exp( (1:horiz.fcast)*(R.m-1.0)/GI$mean )
 	tmp.lo <- exp( (1:horiz.fcast)*(R.lo-1.0)/GI$mean )
 	tmp.hi <- exp( (1:horiz.fcast)*(R.hi-1.0)/GI$mean )
-	n.i <- length(obsinc)
 	inc.f.m  <- c(obsinc, obsinc[n.i] * tmp.m)
 	inc.f.lo <- c(obsinc, obsinc[n.i] * tmp.lo)
 	inc.f.hi <- c(obsinc, obsinc[n.i] * tmp.hi)
@@ -522,9 +524,9 @@ simulateFwd_RESuDe <- function(FIT,
 	
 	nobs <- length(obs.inc)
 	nfor <- length(inc.f.m)
-	inc.f.m  <- c(obs.inc,inc.f.m[(nobs+1):nfor])#c(obs.inc,inc.f.m[(nobs+1):(nobs+horiz.fcast)])
-	inc.f.lo <- c(obs.inc,inc.f.lo[(nobs+1):nfor])#c(obs.inc,inc.f.lo[(nobs+1):(nobs+horiz.fcast)])
-	inc.f.hi <- c(obs.inc,inc.f.hi[(nobs+1):nfor])#c(obs.inc,inc.f.hi[(nobs+1):(nobs+horiz.fcast)])
+	inc.f.m  <- c(obs.inc, inc.f.m[ (nobs+1):nfor])
+	inc.f.lo <- c(obs.inc, inc.f.lo[(nobs+1):nfor])
+	inc.f.hi <- c(obs.inc, inc.f.hi[(nobs+1):nfor])
 	
 	return(list(inc.f.m  = inc.f.m,
 				inc.f.lo = inc.f.lo,
@@ -543,13 +545,16 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	
 	print(paste("DEBUG::",model))
 	
-	### Fit basic renewal equation models:
+	### - - - - - - - - - - - - 
+	###   Perform fit to data
+	### - - - - - - - - - - - - 
 	
 	if(model %in% c("WalLip","WhiPag") || grepl("Cori",model)){
 		fit <- fit.renewal(prms)	
 	} 
 	if(model %in% "SeqBay") fit <- fit.seqBay(prms)
-	if(model == "RESuDe") fit <- fit.resude(prms)
+	if(model == "RESuDe")   fit <- fit.resude(prms)
+	if(model== "SEmInRdet") fit <- 99999
 	
 	### Retrieve fit results:
 	
@@ -565,10 +570,13 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		g       <- gitmp[["g"]]
 	}
 	if(model=="RESuDe"){
-		R <- fit$prm.sample$R0
+		R    <- fit$prm.sample$R0
 		R.lo <- quantile(R,probs = 0.5-CI/2)
 		R.hi <- quantile(R,probs = 0.5+CI/2)
 		R.m  <- median(R)
+	}
+	if(model == 'SEmInRdet'){
+		
 	}
 	
 	### Simulate forward (with fitted model parameters)
@@ -604,6 +612,10 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		sim <- simulateFwd_RESuDe(FIT = fit,
 								  horiz.fcast = horiz.fcast,
 								  GI_span = GI_span)
+	}
+	
+	if(model == "SEmInRdet"){
+		
 	}
 	
 	### Retrieve all simulated incidences:

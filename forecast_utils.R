@@ -87,27 +87,30 @@ create.model.prm <- function(dat,
 							 mcmc_nchains,
 							 mcmc_diagnostic){
 	
+	### CREATES A LIST WITH ALL MODELS USED FOR FORECASTING
+	### Add/remove models here
+	
 	PRM <- list(Cori = list(model = "CoriParam",  
 							dat = dat,
 							dat.full = dat.full,
 							horiz.fcast = horiz.fcast,  
 							GI.val = c(GI.mean,GI.stdv),
-							cori.window = cori.window),
-				
+							cori.window = cori.window)
+				,
 				WalLip = list(model = "WalLip",
 							  dat = dat,
 							  dat.full = dat.full,
 							  horiz.fcast = horiz.fcast,  
 							  GI.dist = "gamma",  # gamma, lognormal, weibull
-							  GI.val = c(GI.mean,GI.stdv)),
-				
+							  GI.val = c(GI.mean,GI.stdv))
+				,
 				WhiPag = list(model = "WhiPag",
 							  dat = dat,
 							  dat.full = dat.full,
 							  horiz.fcast = horiz.fcast,  
 							  GI.dist = "gamma",  # gamma, lognormal, weibull
-							  GI.val = c(GI.mean,GI.stdv)),
-				
+							  GI.val = c(GI.mean,GI.stdv))
+				,
 				SeqBay = list(model = "SeqBay",
 							  dat = dat,
 							  dat.full = dat.full,
@@ -124,13 +127,24 @@ create.model.prm <- function(dat,
 				RESuDe = list(model = "RESuDe",
 							  dat = dat,
 							  dat.full = dat.full,
-							  horizon = horizon,
 							  horiz.fcast = horiz.fcast,
+							  horizon = horizon,
 							  GI_span = GI_span,
 							  pop_size = pop_size,
 							  mcmc_iter = mcmc_iter,
 							  mcmc_nchains = mcmc_nchains,
 							  mcmc_diagnostic = mcmc_diagnostic)
+				# ,
+				# SEmInRdet = list(model = "SEmInRdet",
+				# 				 dat = dat,
+				# 				 dat.full = dat.full,
+				# 				 horiz.fcast = horiz.fcast,
+				# 				 horizon = horizon,
+				# 				 GI_span = GI_span,
+				# 				 pop_size = pop_size,
+				# 				 mcmc_iter = mcmc_iter,
+				# 				 mcmc_nchains = mcmc_nchains,
+				# 				 mcmc_diagnostic = mcmc_diagnostic)
 	)
 	return(PRM)
 }
@@ -162,9 +176,9 @@ fcast.wrap.mc <- function(m, dat.all,
 	dat.chopped <- subset(dat.no.trunc, tb <= ttrunc)
 	
 	# Set parameters for every models:
-	PRM <- create.model.prm(dat = dat.chopped,
+	PRM <- create.model.prm(dat      = dat.chopped,
 							dat.full = dat.no.trunc,
-							horizon        = horizon,
+							horizon  = horizon,
 							horiz.fcast = horiz.fcast,  
 							GI.mean = as.numeric(GI.mean), 
 							GI.stdv = as.numeric(GI.stdv),

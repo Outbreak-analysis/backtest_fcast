@@ -6,4 +6,4 @@ rm -rf ../Datsid/bcktest.db
 ../Datsid/buildNewDB bcktest.db
 
 ### Run the backtesting
-Rscript multi_synth_forecast.R &
+Rscript backtest_fcast.R &
