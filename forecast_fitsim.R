@@ -202,8 +202,11 @@ unpack.prm <- function(prms){
 	pname.resude <- c('pop_size', 'GI_span',
 					  'mcmc_iter', 'mcmc_nchains','mcmc_diagnostic')
 	
-	if(grepl("Cori",model)) pname <- c(pname,pname.cori)
-	if(model=='RESuDe')     pname <- c(pname,pname.resude)
+	pname.seminr <- c('prm.fxd','prm.to.fit')
+	
+	if(grepl("Cori",model)) pname <- c(pname, pname.cori)
+	if(model=='RESuDe')     pname <- c(pname, pname.resude)
+	if(model=='SEmInRdet')  pname <- c(pname, pname.seminr)
 	
 	for(p in pname) assign(x = p,
 						   value = prms[[p]],
@@ -423,6 +426,40 @@ fit.resude <- function(prms) {
 	return(FIT)
 }
 
+fit.SEmInRdet <- function(prms){
+	
+	# unpack paramters:
+	unpack.prm(prms)
+	inc.obs  <- dat$inc
+	t.obs    <- 1:length(dat.obs)
+	
+	FIT <- fit.mle.SEmInR(prm.to.fit, 
+						  prm.fxd, 
+						  t.obs, 
+						  inc.obs,
+						  method = "SANN", #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",
+						  maxit = 80)
+	prm.fitted <- FIT[['prm.fitted']]
+	llkmin     <- FIT[['llkmin']]    
+	
+	# Try to approximate CI value:
+	cival <- CI.llk.sample(CIlevel = 0.95, 
+						   nsample = 100, 
+						   prm.fitted, 
+						   llkmin, prm.fxd, t.obs,
+						   inc.obs = inc.obs,
+						   prop.search = 0.5)
+	M <- matrix(unlist(cival), ncol=length(prm.fitted),byrow = T)
+	if("R0" %in% names(prm.fitted)){
+		j <- which(names(prm.fitted)=="R0")
+		R0.lo <- min(M[,j])
+		R0.hi <- max(M[,j])
+		R0    <- prm.fitted['R0']
+	}
+	return(list(fit = FIT, cival = cival, 
+				R0=R0, R0.lo=R0.lo, R0.hi=R0.hi))
+}
+
 
 ### - - - - - - - - - - - - - - - - -
 ### - - - - SIMULATION FUNCTIONS - - - - 
@@ -534,6 +571,32 @@ simulateFwd_RESuDe <- function(FIT,
 				inc.f.all = FCAST$sf))
 }
 
+
+simulateFwd_SEmInRdet <- function(prm.fitted, prm.fxd) {
+	
+	# Simulate forward with fitted data (point estimate):
+	sim.fit  <- simul.SEmInR.det(prm.fitted, prm.fxd)
+	df.fit   <- sim.fit$ts
+	inc.best <- df.fit$inc
+	
+	# Simulate forward with fitted data (CI envelop):
+	inc.CI <- list()
+	for(s in 1:length(cival)){
+		if(s%%10==0) print(paste('simulating CI incidence',s,'/',length(cival)))
+		sim.CI <- simul.SEmInR.det(cival[[s]],prm.fxd)
+		inc.CI[[s]] <- sim.CI$ts$inc
+	}
+	
+	m.CI <- matrix(unlist(inc.CI),ncol=length(inc.CI[[1]]),byrow = TRUE)
+	inc.ci.lo <- apply(m.CI,MARGIN = 2,FUN=min)
+	inc.ci.hi <- apply(m.CI,MARGIN = 2,FUN=max)
+	
+	return(list(inc.f.m  = inc.best,
+				inc.f.lo = inc.ci.lo,
+				inc.f.hi = inc.ci.hi
+				))
+}
+
 ### - - - - - - - - - - - - - - - - -
 ### - - - -   FORECASTS   - - - - 
 ### - - - - - - - - - - - - - - - - -
@@ -554,7 +617,7 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	} 
 	if(model %in% "SeqBay") fit <- fit.seqBay(prms)
 	if(model == "RESuDe")   fit <- fit.resude(prms)
-	if(model== "SEmInRdet") fit <- 99999
+	if(model== "SEmInRdet") fit <- fit.SEmInRdet(prms)
 	
 	### Retrieve fit results:
 	
@@ -576,7 +639,9 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		R.m  <- median(R)
 	}
 	if(model == 'SEmInRdet'){
-		
+		R.lo <- fit[['R0.lo']]
+		R.hi <- fit[['R0.hi']]
+		R.m  <- fit[['R0']]
 	}
 	
 	### Simulate forward (with fitted model parameters)
@@ -615,7 +680,7 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	}
 	
 	if(model == "SEmInRdet"){
-		
+		sim <- simulateFwd_SEmInRdet(prm.fitted,prm.fxd)
 	}
 	
 	### Retrieve all simulated incidences:

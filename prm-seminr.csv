@@ -1,0 +1,11 @@
+horizon,150
+nE,2
+nI,2
+init_I1,1
+n.time.steps,500,
+per.capita,0
+,
+latent_mean,4
+infectious_mean, 2
+popSize, 10000,
+R0, 1.555

@@ -85,7 +85,9 @@ create.model.prm <- function(dat,
 							 pop_size,
 							 mcmc_iter,
 							 mcmc_nchains,
-							 mcmc_diagnostic){
+							 mcmc_diagnostic,
+							 SEmInR.prm.fxd,
+							 SEmInR.prm.to.fit){
 	
 	### CREATES A LIST WITH ALL MODELS USED FOR FORECASTING
 	### Add/remove models here
@@ -134,17 +136,14 @@ create.model.prm <- function(dat,
 							  mcmc_iter = mcmc_iter,
 							  mcmc_nchains = mcmc_nchains,
 							  mcmc_diagnostic = mcmc_diagnostic)
-				# ,
-				# SEmInRdet = list(model = "SEmInRdet",
-				# 				 dat = dat,
-				# 				 dat.full = dat.full,
-				# 				 horiz.fcast = horiz.fcast,
-				# 				 horizon = horizon,
-				# 				 GI_span = GI_span,
-				# 				 pop_size = pop_size,
-				# 				 mcmc_iter = mcmc_iter,
-				# 				 mcmc_nchains = mcmc_nchains,
-				# 				 mcmc_diagnostic = mcmc_diagnostic)
+				,
+				SEmInRdet = list(model = "SEmInRdet",
+								 dat = dat,
+								 dat.full = dat.full,
+								 horiz.fcast = horiz.fcast,
+								 prm.fxd = SEmInR.prm.fxd,
+								 prm.to.fit = SEmInR.prm.to.fit
+				)
 	)
 	return(PRM)
 }
@@ -160,6 +159,8 @@ fcast.wrap.mc <- function(m, dat.all,
 						  mcmc_iter,
 						  mcmc_nchains,
 						  mcmc_diagnostic,
+						  SEmInR.prm.fxd,
+						  SEmInR.prm.to.fit,
 						  rel.err,
 						  do.plot){
 	
@@ -188,7 +189,9 @@ fcast.wrap.mc <- function(m, dat.all,
 							pop_size = pop_size,
 							mcmc_iter = mcmc_iter,
 							mcmc_nchains = mcmc_nchains,
-							mcmc_diagnostic = mcmc_diagnostic)
+							mcmc_diagnostic = mcmc_diagnostic,
+							SEmInR.prm.fxd = SEmInR.prm.fxd,
+							SEmInR.prm.to.fit = SEmInR.prm.to.fit)
 	# Forecast:
 	fcast <- try(lapply(PRM,
 						fcast_incidence,

@@ -6,6 +6,6 @@ horiz.fcast, 5
 GI.bias, 1.0
 n.MC.max, 3
 CI, 0.95
-parallel, 1
+parallel, 0
 cori.window, 3
 relError,1

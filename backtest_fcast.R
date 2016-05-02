@@ -51,12 +51,41 @@ rel.err        <- read_prm(fpb,'relError')
 cori.window    <- read_prm(fpb,'cori.window') # <-- TO DO: should be in another file!
 
 # RESuDe parameters:
-fresude <- 'prm-resude.csv'
+fresude         <- 'prm-resude.csv'
 GI_span         <- read_prm(file = fresude, x='GI_span')
 pop_size        <- read_prm(fresude,'pop_size')
 mcmc_iter       <- read_prm(fresude,'mcmc_iter')
 mcmc_nchains    <- read_prm(fresude,'mcmc_nchains')
 mcmc_diagnostic <- read_prm(fresude,'mcmc_diagnostic')
+
+# SEmInR parameters:
+fseminr      <- 'prm-seminr.csv'
+horizon      <- read_prm(fseminr, 'horizon')
+nE           <- read_prm(fseminr, 'nE')
+nI           <- read_prm(fseminr, 'nI')
+init_I1      <- read_prm(fseminr, 'init_I1')
+n.time.steps <- read_prm(fseminr, 'n.time.steps')
+per.capita   <- read_prm(fseminr, 'per.capita')
+
+latent_mean       <- read_prm(fseminr, 'latent_mean')
+infectious_mean   <- read_prm(fseminr, 'infectious_mean')
+popSize           <- read_prm(fseminr, 'popSize')
+R0                <- read_prm(fseminr, 'R0')
+
+SEmInR.prm.to.fit <- c(
+	latent_mean     = latent_mean,
+	infectious_mean = infectious_mean,
+	popSize         = popSize,
+	R0              = R0)
+
+SEmInR.prm.fxd <-  c(
+	horizon = horizon,
+	nE = nE,
+	nI = nI,
+	init_I1 = init_I1,
+	n.time.steps = n.time.steps,
+	per.capita = per.capita
+)
 
 
 ### 
@@ -116,6 +145,8 @@ for(i in 1:n.bcktest){
 							 mcmc_iter   = mcmc_iter,
 							 mcmc_nchains    = mcmc_nchains,
 							 mcmc_diagnostic = mcmc_diagnostic,
+							 SEmInR.prm.fxd    = SEmInR.prm.fxd,
+							 SEmInR.prm.to.fit = SEmInR.prm.to.fit,
 							 rel.err     = rel.err,
 							 do.plot     = (n.cores==1)
 	)
