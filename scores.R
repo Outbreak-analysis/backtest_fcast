@@ -55,20 +55,22 @@ merge.sum.scores <- function(sc.tmp,CI){
 	# Summary statistics:
 	scsum <- ddply(sc,c('model','source','modelsyndata',
 						'R0','GI.mean','nMCdata'),
-				   summarize, 
-				   ME.med    = median(ME),
-				   ME.lo     = quantile(ME,probs = 0.5+CI/2),
-				   ME.hi     = quantile(ME,probs = 0.5-CI/2),
-				   MAE.med   = median(MAE),
-				   MAE.lo    = quantile(MAE,probs = 0.5+CI/2),
-				   MAE.hi    = quantile(MAE,probs = 0.5-CI/2))
+						summarize, 
+						ME.med    = median(ME, na.rm = TRUE),
+						ME.lo     = quantile(ME,probs = 0.5+CI/2, na.rm = TRUE),
+						ME.hi     = quantile(ME,probs = 0.5-CI/2, na.rm = TRUE),
+						MAE.med   = median(MAE, na.rm = TRUE),
+						MAE.lo    = quantile(MAE,probs = 0.5+CI/2, na.rm = TRUE),
+						MAE.hi    = quantile(MAE,probs = 0.5-CI/2, na.rm = TRUE),
+						ncalc     = sum(!is.na(ME))
+	)
 	
 	return(scsum)
 }
 
-plot.scores <-function(scsum){
+plot.scores <-function(scsum, savetofile = TRUE){
 	
-	pdf(file = 'scores-summary.pdf', width=25,height =15)
+	if(savetofile) pdf(file = 'scores-summary.pdf', width=25,height =15)
 	
 	### OVERALL RANKING
 	CI <- 0.8
@@ -148,8 +150,7 @@ plot.scores <-function(scsum){
 	g.GI <- g.GI + geom_hline(yintercept=0,linetype=2)
 	plot(g.GI)
 	
-	
-	dev.off()
+	if(savetofile) dev.off()
 }
 
 

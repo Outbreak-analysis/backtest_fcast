@@ -1,6 +1,6 @@
 horizon,150
-nE,2
-nI,2
+nE,5
+nI,5
 init_I1,1
 n.time.steps,500,
 per.capita,0

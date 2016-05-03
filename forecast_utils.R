@@ -162,7 +162,8 @@ fcast.wrap.mc <- function(m, dat.all,
 						  SEmInR.prm.fxd,
 						  SEmInR.prm.to.fit,
 						  rel.err,
-						  do.plot){
+						  do.plot,
+						  single.model.fcast = NULL){
 	
 	### WRAP FOR PARALLEL CODE IN THE MONTE CARLO LOOP
 	
@@ -192,16 +193,25 @@ fcast.wrap.mc <- function(m, dat.all,
 							mcmc_diagnostic = mcmc_diagnostic,
 							SEmInR.prm.fxd = SEmInR.prm.fxd,
 							SEmInR.prm.to.fit = SEmInR.prm.to.fit)
+	
 	# Forecast:
-	fcast <- try(lapply(PRM,
-						fcast_incidence,
-						do.plot = do.plot),
-				 silent = TRUE)
-	# # # DEBUG: removed 'try'
-	# fcast <- lapply(PRM,
-	# 					fcast_incidence,
-	# 					do.plot = do.plot)
-	# - - - - 
+	
+	# If just one forecasting model (typically used for test/debug):
+	if(!is.null(single.model.fcast)) {
+		PRM <- PRM[[single.model.fcast]]
+		fcast <- fcast_incidence(prms = PRM, do.plot = do.plot)
+	}
+	if(is.null(single.model.fcast)) {
+		fcast <- try(lapply(X = PRM,
+							FUN = fcast_incidence,
+							do.plot = do.plot),
+					 silent = TRUE)
+		# # # DEBUG: removed 'try'
+		# fcast <- lapply(X = PRM,
+		# 				FUN = fcast_incidence,
+		# 				do.plot = do.plot)
+		# - - - - 
+	}
 	return(fcast)
 }
 
@@ -297,3 +307,59 @@ get.trunc.time <- function(file,trueparam){
 }
 
 
+
+
+read_prm <- function(file,x){
+	f <- read.csv(file,header = F)
+	as.numeric(as.character(f[trimws(as.character(f[,1]))==x,2]))
+}
+
+read_all_prm <-function(){
+	# Backtesting Parameters 
+	fpb            <<- 'prm_backtest.csv'
+	horizon        <<- read_prm(fpb,'horizon') 
+	horiz.fcast    <<- read_prm(fpb,'horiz.fcast') 
+	GI.bias        <<- read_prm(fpb,'GI.bias') 
+	n.MC.max       <<- read_prm(fpb,'n.MC.max')
+	CI             <<- read_prm(fpb,'CI') 
+	multicores     <<- read_prm(fpb,'parallel')
+	rel.err        <<- read_prm(fpb,'relError')
+	cori.window    <<- read_prm(fpb,'cori.window') # <-- TO DO: should be in another file!
+	
+	# RESuDe parameters:
+	fresude         <<- 'prm-resude.csv'
+	GI_span         <<- read_prm(file = fresude, x='GI_span')
+	pop_size        <<- read_prm(fresude,'pop_size')
+	mcmc_iter       <<- read_prm(fresude,'mcmc_iter')
+	mcmc_nchains    <<- read_prm(fresude,'mcmc_nchains')
+	mcmc_diagnostic <<- read_prm(fresude,'mcmc_diagnostic')
+	
+	# SEmInR parameters:
+	fseminr      <<- 'prm-seminr.csv'
+	horizon      <<- read_prm(fseminr, 'horizon')
+	nE           <<- read_prm(fseminr, 'nE')
+	nI           <<- read_prm(fseminr, 'nI')
+	init_I1      <<- read_prm(fseminr, 'init_I1')
+	n.time.steps <<- read_prm(fseminr, 'n.time.steps')
+	per.capita   <<- read_prm(fseminr, 'per.capita')
+	
+	latent_mean       <<- read_prm(fseminr, 'latent_mean')
+	infectious_mean   <<- read_prm(fseminr, 'infectious_mean')
+	popSize           <<- read_prm(fseminr, 'popSize')
+	R0                <<- read_prm(fseminr, 'R0')
+	
+	SEmInR.prm.to.fit <<- c(
+		latent_mean     = latent_mean,
+		infectious_mean = infectious_mean,
+		popSize         = popSize,
+		R0              = R0)
+	
+	SEmInR.prm.fxd <<-  c(
+		horizon = horizon,
+		nE = nE,
+		nI = nI,
+		init_I1 = init_I1,
+		n.time.steps = n.time.steps,
+		per.capita = per.capita
+	)	
+}

@@ -23,9 +23,10 @@ source("forecast_fitsim.R")
 source("forecast_utils.R")
 source("scores.R")
 
-
 # Models that generated synthetic data:
-syn.models <- list("SEmInR", "RESuDe")
+syn.models <- list("SEmInR_4")#list("SEmInR", "RESuDe")
+mc.choose <- 1
+single.model.fcast <- 'SEmInRdet'
 
 # Identify the source names of  synthetic data
 db.path <- "../Datsid/bcktest.db"
@@ -39,7 +40,7 @@ n.bcktest <- length(bcktest)
 # Read all parameters for backtest 
 # and forecasting models
 read_all_prm()
-
+multicores <- 0
 
 ### 
 ### --- Run the backtesting ---
@@ -61,54 +62,43 @@ for(i in 1:n.bcktest){
 	# Find time (after start date) 
 	# to truncate full data (to make forecasts):
 	ttrunc     <- ceiling(get.trunc.time(file = fpb,
-									 trueparam = trueparam))
+										 trueparam = trueparam))
 	# Parallel execution of the forecast
 	# for a given scenario
 	# across all MC realizations:
-	n.cores <- detectCores()
 	if(!multicores) n.cores <- 1
-	sfInit(parallel = (n.cores>1), 
-		   cpu = n.cores)
-	sfLibrary(R0)
-	sfLibrary(rstan)
-	sfLibrary(deSolve)
-	
-	if(!use.DC.version.of.EpiEstim) sfLibrary(EpiEstim)
 	
 	idx.apply <- mcvec
 	message(paste("Synthetic data contains",length(idx.apply),"MC iterations"))
 	
-	# Reduce backtesting to 
-	# specified MC realizations:
-	if(n.MC.max>0) {
-		idx.apply <- idx.apply[1:n.MC.max]
-		message(paste("but not more than",length(idx.apply),"are used."))
-	}
-	sfExportAll()
-	res.parallel <- sfSapply(idx.apply, 
-							 simplify = FALSE,
-							 fcast.wrap.mc,
-							 dat.all     = dat.all,
-							 ttrunc      = ttrunc,
-							 horizon     = horizon,
-							 horiz.fcast = horiz.fcast,
-							 GI.mean     = GI.mean,
-							 GI.stdv     = GI.stdv,
-							 cori.window = cori.window,
-							 GI_span     = GI_span,
-							 pop_size    = pop_size,
-							 mcmc_iter   = mcmc_iter,
-							 mcmc_nchains    = mcmc_nchains,
-							 mcmc_diagnostic = mcmc_diagnostic,
-							 SEmInR.prm.fxd    = SEmInR.prm.fxd,
-							 SEmInR.prm.to.fit = SEmInR.prm.to.fit,
-							 rel.err     = rel.err,
-							 do.plot     = (n.cores==1)
+	if(mc.choose) idx.apply<- mcvec[mc.choose]
+	
+	res.single <- fcast.wrap.mc(m = idx.apply, 
+								dat.all     = dat.all,
+								ttrunc      = ttrunc,
+								horizon     = horizon,
+								horiz.fcast = horiz.fcast,
+								GI.mean     = GI.mean,
+								GI.stdv     = GI.stdv,
+								cori.window = cori.window,
+								GI_span     = GI_span,
+								pop_size    = pop_size,
+								mcmc_iter   = mcmc_iter,
+								mcmc_nchains    = mcmc_nchains,
+								mcmc_diagnostic = mcmc_diagnostic,
+								SEmInR.prm.fxd    = SEmInR.prm.fxd,
+								SEmInR.prm.to.fit = SEmInR.prm.to.fit,
+								rel.err     = rel.err,
+								do.plot     = TRUE,
+								single.model.fcast = single.model.fcast
 	)
-	sfStop()
-
+	
 	### Calculate scores
-	sc.tmp[[i]] <- calc.scores(res.parallel, horiz.fcast, rel.err)
+	res <- list(res.single)
+	names(res) <- single.model.fcast
+	
+	sc.tmp[[i]] <- calc.scores(res.parallel = list(res), 
+							   horiz.fcast, rel.err)
 	
 	sc.tmp[[i]]$modelsyndata <- substr(x = source, start = 1, stop=6)
 	sc.tmp[[i]]$source       <- source
@@ -121,10 +111,8 @@ for(i in 1:n.bcktest){
 scsum <- merge.sum.scores(sc.tmp,CI)
 
 # Plot:
-plot.scores(scsum)
+# plot.scores(scsum, savetofile = FALSE)
 
-# Save all:
-save.image('bcktst.RData')
 
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 t2 <- as.numeric(Sys.time())

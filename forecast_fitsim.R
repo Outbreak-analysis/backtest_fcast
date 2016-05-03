@@ -66,7 +66,7 @@ plot.fcast <- function(model,
 	if(!is.null(dat.full)) {
 		inc.full <- dat.full$inc[f.rng]
 		if(log) inc.full <- log(dat.full$inc[f.rng])
-		yrng <- c(0,max(inc.f.hi,inc.full))
+		yrng <- c(0,max(inc.f.hi,inc.full,na.rm = TRUE))
 	}
 	plot(x= c(tt,(length(tt)+1):nf),
 		 y=inc.f.m,
@@ -110,11 +110,12 @@ plot.fcast.vs.actual <- function(dat,
 	inc.full <- dat.full$inc[f.rng]
 	title <- "Incidence Forecast vs Actual"
 	if(log){
-		inc.f.m <- log(inc.f.m)
-		inc.f.lo <- log(inc.f.lo)
-		inc.f.hi<- log(inc.f.hi)
-		inc <- log(inc)
-		inc.full <- log(inc.full)
+		tiny <- 10E-9
+		inc.f.m <- log(inc.f.m+tiny)
+		inc.f.lo <- log(inc.f.lo+tiny)
+		inc.f.hi<- log(inc.f.hi+tiny)
+		inc <- log(inc+tiny)
+		inc.full <- log(inc.full+tiny)
 		title <- "LOG Incidence Forecast vs Actual"
 	}
 	plot(x=inc.full,
@@ -122,7 +123,7 @@ plot.fcast.vs.actual <- function(dat,
 		 xlab="Actual incidence", 
 		 ylab="Forecast incidence",
 		 main = title,
-		 ylim=range(inc.f.lo[f.rng],inc.f.hi[f.rng],inc.full),
+		 ylim=range(inc.f.lo[f.rng],inc.f.hi[f.rng],inc.full,na.rm = TRUE),
 		 cex=2,lwd=3)
 	segments(x0=inc.full, x1=inc.full,
 			 y0=inc.f.lo[f.rng], y1=inc.f.hi[f.rng],
@@ -431,7 +432,7 @@ fit.SEmInRdet <- function(prms){
 	# unpack paramters:
 	unpack.prm(prms)
 	inc.obs  <- dat$inc
-	t.obs    <- 1:length(dat.obs)
+	t.obs    <- 1:length(inc.obs)
 	
 	FIT <- fit.mle.SEmInR(prm.to.fit, 
 						  prm.fxd, 
@@ -439,6 +440,12 @@ fit.SEmInRdet <- function(prms){
 						  inc.obs,
 						  method = "SANN", #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",
 						  maxit = 80)
+	
+	# Corrections if fit found weird values:
+	if(FIT$prm.fitted[["infectious_mean"]]<=0) FIT$prm.fitted[["infectious_mean"]] <- 0.25
+	if(FIT$prm.fitted[["latent_mean"]]<=0) FIT$prm.fitted[["latent_mean"]] <- 0.25
+	if(FIT$prm.fitted[["R0"]]<=0) FIT$prm.fitted[["R0"]] <- 0.1
+	
 	prm.fitted <- FIT[['prm.fitted']]
 	llkmin     <- FIT[['llkmin']]    
 	
@@ -572,7 +579,7 @@ simulateFwd_RESuDe <- function(FIT,
 }
 
 
-simulateFwd_SEmInRdet <- function(prm.fitted, prm.fxd) {
+simulateFwd_SEmInRdet <- function(prm.fitted, prm.fxd, cival) {
 	
 	# Simulate forward with fitted data (point estimate):
 	sim.fit  <- simul.SEmInR.det(prm.fitted, prm.fxd)
@@ -642,6 +649,7 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		R.lo <- fit[['R0.lo']]
 		R.hi <- fit[['R0.hi']]
 		R.m  <- fit[['R0']]
+		R    <- R.m
 	}
 	
 	### Simulate forward (with fitted model parameters)
@@ -680,7 +688,8 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	}
 	
 	if(model == "SEmInRdet"){
-		sim <- simulateFwd_SEmInRdet(prm.fitted,prm.fxd)
+		prm.fitted <- fit$fit[['prm.fitted']]
+		sim <- simulateFwd_SEmInRdet(prm.fitted,prm.fxd,fit$cival)
 	}
 	
 	### Retrieve all simulated incidences:
