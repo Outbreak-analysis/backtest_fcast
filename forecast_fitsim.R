@@ -70,7 +70,7 @@ plot.fcast <- function(model,
 	}
 	plot(x= c(tt,(length(tt)+1):nf),
 		 y=inc.f.m,
-		 cex=2, lwd=2,
+		 cex=1, lwd=1, typ='o',
 		 main = title,
 		 xlab="time", ylab=ylab,
 		 ylim=yrng)
@@ -434,16 +434,43 @@ fit.SEmInRdet <- function(prms){
 	inc.obs  <- dat$inc
 	t.obs    <- 1:length(inc.obs)
 	
+	
+	
+	# DEBUG - -- - - - - -
+	
+	# prm.to.fit[['R0']]<-1.55
+	print("initial guess SEmInR:")
+	print(prm.to.fit)
+	print("prm.fxd:")
+	print(prm.fxd)
+	print("llk:")
+	print(llk.pois(prm.to.fit, prm.fxd, t.obs, inc.obs))
+	
+	# prm.to.fit[['infectious_mean']]<-3.7703
+	# prm.to.fit[['popSize']]<-9384.737604
+	# prm.to.fit[['R0']]<-2.721712
+	# - - - - - -  
+	
+	lower = -Inf
+	upper = Inf
+	
+	# IF ...
+	lower <- c(0.1, 100, 0.1)
+	upper <- c(10,1E7,9)
+	
+	
 	FIT <- fit.mle.SEmInR(prm.to.fit, 
 						  prm.fxd, 
 						  t.obs, 
 						  inc.obs,
-						  method = "SANN", #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",
-						  maxit = 80)
+						  upper = upper,
+						  lower = lower,
+						  method = "L-BFGS-B",
+						  maxit = 400) #, #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",BFGS
 	
 	# Corrections if fit found weird values:
 	if(FIT$prm.fitted[["infectious_mean"]]<=0) FIT$prm.fitted[["infectious_mean"]] <- 0.25
-	if(FIT$prm.fitted[["latent_mean"]]<=0) FIT$prm.fitted[["latent_mean"]] <- 0.25
+	#if(FIT$prm.fitted[["latent_mean"]]<=0) FIT$prm.fitted[["latent_mean"]] <- 0.25
 	if(FIT$prm.fitted[["R0"]]<=0) FIT$prm.fitted[["R0"]] <- 0.1
 	
 	prm.fitted <- FIT[['prm.fitted']]
@@ -463,6 +490,8 @@ fit.SEmInRdet <- function(prms){
 		R0.hi <- max(M[,j])
 		R0    <- prm.fitted['R0']
 	}
+	print("SEmInR fitted parameters:")
+	print(FIT$prm.fitted)
 	return(list(fit = FIT, cival = cival, 
 				R0=R0, R0.lo=R0.lo, R0.hi=R0.hi))
 }
@@ -584,7 +613,13 @@ simulateFwd_SEmInRdet <- function(prm.fitted, prm.fxd, cival) {
 	# Simulate forward with fitted data (point estimate):
 	sim.fit  <- simul.SEmInR.det(prm.fitted, prm.fxd)
 	df.fit   <- sim.fit$ts
-	inc.best <- df.fit$inc
+	inc.best0 <- df.fit$inc
+	
+	t <- df.fit$time
+	dt <- df.fit$time[2]-df.fit$time[1]
+	tmax <- max(t)
+	idx <- which(abs(t-round(t))<dt/2)
+	if(t[1]==0) idx <- idx[-1] # remove 0
 	
 	# Simulate forward with fitted data (CI envelop):
 	inc.CI <- list()
@@ -595,8 +630,13 @@ simulateFwd_SEmInRdet <- function(prm.fitted, prm.fxd, cival) {
 	}
 	
 	m.CI <- matrix(unlist(inc.CI),ncol=length(inc.CI[[1]]),byrow = TRUE)
-	inc.ci.lo <- apply(m.CI,MARGIN = 2,FUN=min)
-	inc.ci.hi <- apply(m.CI,MARGIN = 2,FUN=max)
+	inc.ci.lo0 <- apply(m.CI,MARGIN = 2,FUN=min)
+	inc.ci.hi0 <- apply(m.CI,MARGIN = 2,FUN=max)
+	
+	# Take values at integer times:
+	inc.best  <- inc.best0[idx]
+	inc.ci.lo <- inc.ci.lo0[idx]
+	inc.ci.hi <- inc.ci.hi0[idx]
 	
 	return(list(inc.f.m  = inc.best,
 				inc.f.lo = inc.ci.lo,

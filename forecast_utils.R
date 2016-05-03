@@ -349,17 +349,17 @@ read_all_prm <-function(){
 	R0                <<- read_prm(fseminr, 'R0')
 	
 	SEmInR.prm.to.fit <<- c(
-		latent_mean     = latent_mean,
 		infectious_mean = infectious_mean,
 		popSize         = popSize,
 		R0              = R0)
 	
 	SEmInR.prm.fxd <<-  c(
-		horizon = horizon,
-		nE = nE,
-		nI = nI,
-		init_I1 = init_I1,
+		latent_mean = latent_mean,
+		horizon     = horizon,
+		nE          = nE,
+		nI          = nI,
+		init_I1     = init_I1,
 		n.time.steps = n.time.steps,
-		per.capita = per.capita
+		per.capita  = per.capita
 	)	
 }
