@@ -455,9 +455,9 @@ fit.SEmInRdet <- function(prms){
 	upper = Inf
 	
 	# IF ...
-	lower <- c(0.1, 100, 0.1)
-	upper <- c(10,1E7,9)
-	
+	# lower <- c(0.1, 100, 0.1)
+	# upper <- c(10,1E7,9)
+	# 
 	
 	FIT <- fit.mle.SEmInR(prm.to.fit, 
 						  prm.fxd, 
@@ -465,13 +465,13 @@ fit.SEmInRdet <- function(prms){
 						  inc.obs,
 						  upper = upper,
 						  lower = lower,
-						  method = "L-BFGS-B",
+						  method = "CG",
 						  maxit = 400) #, #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",BFGS
 	
 	# Corrections if fit found weird values:
-	if(FIT$prm.fitted[["infectious_mean"]]<=0) FIT$prm.fitted[["infectious_mean"]] <- 0.25
+	# if(FIT$prm.fitted[["infectious_mean"]]<=0) FIT$prm.fitted[["infectious_mean"]] <- 0.25
 	#if(FIT$prm.fitted[["latent_mean"]]<=0) FIT$prm.fitted[["latent_mean"]] <- 0.25
-	if(FIT$prm.fitted[["R0"]]<=0) FIT$prm.fitted[["R0"]] <- 0.1
+	if(FIT$prm.fitted[["R0"]]<=0.1) FIT$prm.fitted[["R0"]] <- 0.1
 	
 	prm.fitted <- FIT[['prm.fitted']]
 	llkmin     <- FIT[['llkmin']]    

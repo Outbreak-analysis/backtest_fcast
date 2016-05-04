@@ -349,11 +349,11 @@ read_all_prm <-function(){
 	R0                <<- read_prm(fseminr, 'R0')
 	
 	SEmInR.prm.to.fit <<- c(
-		infectious_mean = infectious_mean,
 		popSize         = popSize,
 		R0              = R0)
 	
 	SEmInR.prm.fxd <<-  c(
+		infectious_mean = infectious_mean,
 		latent_mean = latent_mean,
 		horizon     = horizon,
 		nE          = nE,
