@@ -6,7 +6,7 @@ source('../RESuDe_forecast/fit_stan.R')
 source('../RESuDe_forecast/forecast.R')
 source("../SEmInR/SEmInR_deterministic.R")
 source("../SEmInR/SEmInR_deterministic_fit_mle.R")
-
+source("../SEmInR/SEmInR_deterministic_fit_ABC.R")
 
 plot.GI <- function(g, GI.dist){
 	n <- length(g)
@@ -427,7 +427,7 @@ fit.resude <- function(prms) {
 	return(FIT)
 }
 
-fit.SEmInRdet <- function(prms){
+fit.SEmInRdet <- function(prms, fit.type){
 	
 	# unpack paramters:
 	unpack.prm(prms)
@@ -435,65 +435,50 @@ fit.SEmInRdet <- function(prms){
 	t.obs    <- 1:length(inc.obs)
 	
 	
-	
-	# DEBUG - -- - - - - -
-	
-	# prm.to.fit[['R0']]<-1.55
-	print("initial guess SEmInR:")
-	print(prm.to.fit)
-	print("prm.fxd:")
-	print(prm.fxd)
-	print("llk:")
-	print(llk.pois(prm.to.fit, prm.fxd, t.obs, inc.obs))
-	
-	# prm.to.fit[['infectious_mean']]<-3.7703
-	# prm.to.fit[['popSize']]<-9384.737604
-	# prm.to.fit[['R0']]<-2.721712
-	# - - - - - -  
-	
-	lower = -Inf
-	upper = Inf
-	
-	# IF ...
-	# lower <- c(0.1, 100, 0.1)
-	# upper <- c(10,1E7,9)
-	# 
-	
-	FIT <- fit.mle.SEmInR(prm.to.fit, 
-						  prm.fxd, 
-						  t.obs, 
-						  inc.obs,
-						  upper = upper,
-						  lower = lower,
-						  method = "CG",
-						  maxit = 400) #, #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",BFGS
-	
-	# Corrections if fit found weird values:
-	# if(FIT$prm.fitted[["infectious_mean"]]<=0) FIT$prm.fitted[["infectious_mean"]] <- 0.25
-	#if(FIT$prm.fitted[["latent_mean"]]<=0) FIT$prm.fitted[["latent_mean"]] <- 0.25
-	if(FIT$prm.fitted[["R0"]]<=0.1) FIT$prm.fitted[["R0"]] <- 0.1
-	
-	prm.fitted <- FIT[['prm.fitted']]
-	llkmin     <- FIT[['llkmin']]    
-	
-	# Try to approximate CI value:
-	cival <- CI.llk.sample(CIlevel = 0.95, 
-						   nsample = 100, 
-						   prm.fitted, 
-						   llkmin, prm.fxd, t.obs,
-						   inc.obs = inc.obs,
-						   prop.search = 0.5)
-	M <- matrix(unlist(cival), ncol=length(prm.fitted),byrow = T)
-	if("R0" %in% names(prm.fitted)){
-		j <- which(names(prm.fitted)=="R0")
-		R0.lo <- min(M[,j])
-		R0.hi <- max(M[,j])
-		R0    <- prm.fitted['R0']
+	if(fit.type == 'mle'){
+		FIT <- fit.mle.SEmInR(prm.to.fit, 
+							  prm.fxd, 
+							  t.obs, 
+							  inc.obs,
+							  method = "SANN", #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",
+							  maxit = 80)
+		
+		
+		prm.fitted <- FIT[['prm.fitted']]
+		llkmin     <- FIT[['llkmin']]    
+		
+		# Try to approximate CI value:
+		cival <- CI.llk.sample(CIlevel = 0.95, 
+							   nsample = 100, 
+							   prm.fitted, 
+							   llkmin, prm.fxd, t.obs,
+							   inc.obs = inc.obs,
+							   prop.search = 0.5)
+		M <- matrix(unlist(cival), ncol=length(prm.fitted),byrow = T)
+		if("R0" %in% names(prm.fitted)){
+			j <- which(names(prm.fitted)=="R0")
+			R0.lo <- min(M[,j])
+			R0.hi <- max(M[,j])
+			R0    <- prm.fitted['R0']
+		}
+		return(list(fit = FIT, cival = cival, 
+					R0=R0, R0.lo=R0.lo, R0.hi=R0.hi))
 	}
-	print("SEmInR fitted parameters:")
-	print(FIT$prm.fitted)
-	return(list(fit = FIT, cival = cival, 
-				R0=R0, R0.lo=R0.lo, R0.hi=R0.hi))
+	if(fit.type == 'ABC'){
+		### TO DO : READ FROM A FILE !!!
+		priors <- list(infectious_mean = list('unif', prm=list(1,9)),
+					   latent_mean     = list('unif', prm=list(1,9)),
+					   popSize         = list('unif', prm=list(1e3,1e6)),
+					   R0              = list('unif', prm=list(0.95,9))
+		)
+		priors.prm.to.fit <- priors
+		
+		FIT <- fit.ABC.SEmInR(t.obs, inc.obs, 
+							  prm.fxd, priors.prm.to.fit, 
+							  nABC = 1E4, post.prop=0.01)
+		return(list(fit = FIT))
+	}
+
 }
 
 
@@ -664,7 +649,10 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	} 
 	if(model %in% "SeqBay") fit <- fit.seqBay(prms)
 	if(model == "RESuDe")   fit <- fit.resude(prms)
-	if(model== "SEmInRdet") fit <- fit.SEmInRdet(prms)
+	if(model== "SEmInRdet") {
+		seminr.fit.type <- 'ABC'  # 'mle' or 'ABC'
+		fit <- fit.SEmInRdet(prms,fit.type = seminr.fit.type)
+	}
 	
 	### Retrieve fit results:
 	
@@ -686,10 +674,19 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		R.m  <- median(R)
 	}
 	if(model == 'SEmInRdet'){
-		R.lo <- fit[['R0.lo']]
-		R.hi <- fit[['R0.hi']]
-		R.m  <- fit[['R0']]
-		R    <- R.m
+		if(seminr.fit.type=='mle'){
+			R.lo <- fit[['R0.lo']]
+			R.hi <- fit[['R0.hi']]
+			R.m  <- fit[['R0']]
+			R    <- R.m	
+		}
+		if(seminr.fit.type=='ABC'){
+			R0post <- fit[['Mpost']][,'R0']
+			R.lo <- quantile(R0post,probs = 0.5-CI/2)
+			R.m  <- quantile(R0post,probs = 0.5)
+			R.hi <- quantile(R0post,probs = 0.5+CI/2)
+			R    <- R.m
+		}
 	}
 	
 	### Simulate forward (with fitted model parameters)
@@ -728,8 +725,17 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	}
 	
 	if(model == "SEmInRdet"){
-		prm.fitted <- fit$fit[['prm.fitted']]
-		sim <- simulateFwd_SEmInRdet(prm.fitted,prm.fxd,fit$cival)
+		if(seminr.fit.type=='mle'){
+			prm.fitted <- fit$fit[['prm.fitted']]
+			sim <- simulateFwd_SEmInRdet(prm.fitted,prm.fxd,fit$cival)
+		}
+		if(seminr.fit.type=='ABC'){
+			postinc <- post.incidence(fit[['Mpost']], t=t.obs, CI)
+			sim <- list()
+			sim[["inc.f.m"]]  <- postinc[['inc.md']]
+			sim[["inc.f.lo"]] <- postinc[['inc.lo']]
+			sim[["inc.f.hi"]] <- postinc[['inc.hi']]
+		}
 	}
 	
 	### Retrieve all simulated incidences:
