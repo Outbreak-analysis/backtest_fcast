@@ -25,9 +25,9 @@ source("forecast_utils.R")
 source("scores.R")
 
 # Models that generated synthetic data:
-syn.models <- list("SEmInR_4")#list("SEmInR", "RESuDe")
+syn.models <- list("SEmInR_1")#list("SEmInR", "RESuDe")
 mc.choose <- 1
-single.model.fcast <- 'RESuDe' #'RESuDe' # 'SEmInRdet'
+single.model.fcast <- 'SEmInRdet' #'RESuDe' # 'SEmInRdet'
 
 # Identify the source names of  synthetic data
 db.path <- "../Datsid/bcktest.db"
@@ -109,9 +109,6 @@ sc.tmp[[i]]$nMCdata      <- length(mcvec)
 # Merge and summarize scores for 
 # all bactesting scenarios:
 scsum <- merge.sum.scores(sc.tmp,CI)
-
-# Plot:
-# plot.scores(scsum, savetofile = FALSE)
 
 
 # ==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-

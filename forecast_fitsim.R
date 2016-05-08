@@ -434,7 +434,6 @@ fit.SEmInRdet <- function(prms, fit.type){
 	inc.obs  <- dat$inc
 	t.obs    <- 1:length(inc.obs)
 	
-	
 	if(fit.type == 'mle'){
 		FIT <- fit.mle.SEmInR(prm.to.fit, 
 							  prm.fxd, 
@@ -476,7 +475,7 @@ fit.SEmInRdet <- function(prms, fit.type){
 		FIT <- fit.ABC.SEmInR(t.obs, inc.obs, 
 							  prm.fxd, priors.prm.to.fit, 
 							  nABC = 1E4, post.prop=0.01)
-		return(list(fit = FIT))
+		return(FIT)
 	}
 
 }
@@ -681,7 +680,7 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 			R    <- R.m	
 		}
 		if(seminr.fit.type=='ABC'){
-			R0post <- fit[['Mpost']][,'R0']
+			R0post <- fit[['posteriors']][,'R0']
 			R.lo <- quantile(R0post,probs = 0.5-CI/2)
 			R.m  <- quantile(R0post,probs = 0.5)
 			R.hi <- quantile(R0post,probs = 0.5+CI/2)
@@ -730,11 +729,19 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 			sim <- simulateFwd_SEmInRdet(prm.fitted,prm.fxd,fit$cival)
 		}
 		if(seminr.fit.type=='ABC'){
-			postinc <- post.incidence(fit[['Mpost']], t=t.obs, CI)
+			postinc <- post.incidence(fit[['posteriors']], CI)
+			# simulations returned are with a different time
+			# granularity (bc ODE solved), so extract only at rounded times:
+			horiz <- prms$prm.fxd['horizon']
+			sim.time <- postinc$time
 			sim <- list()
-			sim[["inc.f.m"]]  <- postinc[['inc.md']]
-			sim[["inc.f.lo"]] <- postinc[['inc.lo']]
-			sim[["inc.f.hi"]] <- postinc[['inc.hi']]
+			sim[["inc.f.m"]]   <- time.subset(t=sim.time, x=postinc[['inc.md']],t.subset = 1:horiz)
+			sim[["inc.f.lo"]]  <- time.subset(t=sim.time, x=postinc[['inc.lo']],t.subset = 1:horiz)
+			sim[["inc.f.hi"]]  <- time.subset(t=sim.time, x=postinc[['inc.hi']],t.subset = 1:horiz)
+			
+			# sim[["inc.f.m"]]  <- postinc[['inc.md']]
+			# sim[["inc.f.lo"]] <- postinc[['inc.lo']]
+			# sim[["inc.f.hi"]] <- postinc[['inc.hi']]
 		}
 	}
 	

@@ -198,8 +198,8 @@ fcast.wrap.mc <- function(m, dat.all,
 	
 	# If just one forecasting model (typically used for test/debug):
 	if(!is.null(single.model.fcast)) {
-		PRM <- PRM[[single.model.fcast]]
-		fcast <- fcast_incidence(prms = PRM, do.plot = do.plot)
+		prms <- PRM[[single.model.fcast]]
+		fcast <- fcast_incidence(prms, do.plot)
 	}
 	if(is.null(single.model.fcast)) {
 		fcast <- try(lapply(X = PRM,
@@ -362,4 +362,13 @@ read_all_prm <-function(){
 		n.time.steps = n.time.steps,
 		per.capita  = per.capita
 	)	
+}
+
+
+### Return x[tsubset]
+time.subset <- function(t,x,t.subset) {
+dt  <- t[2]-t[1]
+idx <- vector()
+for(k in 1:length(t.subset)) { idx[k] <- which(abs(t-t.subset[k]) < dt/1.999)[1] }
+return(x[idx])
 }
