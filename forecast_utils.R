@@ -126,6 +126,11 @@ create.model.prm <- function(dat,
 							horiz.fcast = horiz.fcast,  
 							GI.val = GI.mean)
 				,
+				GGM = list(model = 'GGM',
+						   dat = dat,
+						   dat.full = dat.full,
+						   horiz.fcast = horiz.fcast)
+				,
 				RESuDe = list(model = "RESuDe",
 							  dat = dat,
 							  dat.full = dat.full,

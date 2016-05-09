@@ -1,1 +1,1 @@
-scp champrd@ms.mcmaster.ca:~/GitHub/tmp_earlyForecast/*.$1 ./
+scp champrd@ms.mcmaster.ca:~/GitHub/backtest_forecast/*.$1 ./

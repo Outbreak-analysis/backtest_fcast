@@ -7,6 +7,7 @@ source('../RESuDe_forecast/forecast.R')
 source("../SEmInR/SEmInR_deterministic.R")
 source("../SEmInR/SEmInR_deterministic_fit_mle.R")
 source("../SEmInR/SEmInR_deterministic_fit_ABC.R")
+source("../genGrowth/ggm_lib.R")
 
 plot.GI <- function(g, GI.dist){
 	n <- length(g)
@@ -319,6 +320,25 @@ fit.renewal <- function(prms){
 				model = model))
 }
 
+### Fit generailzed growth model (Chowell et al 2016)
+fit.GGM <- function(prms){
+	
+	inc <- dat$inc
+	n   <- length(inc)
+	dat <- data.frame(t=1:length(inc), inc=inc)
+	# guess for fitted param:
+	prm.init <- c(r = (inc[n]-inc[1])/n, 
+				  p = 0.9)
+	
+	fit <- estimate.CI(dat          = dat, 
+					   CIwidth      = 0.5,
+					   n.MC         = 200,
+					   prm.init     = prm.init, 
+					   relative.err = FALSE)
+	return(fit)
+}
+
+
 fit.seqBay <- function(prms){
 	### FIT REPRODUCTIVE NUMBER 
 	### FOR SEQUENTIAL BAYESIAN METHOD
@@ -555,6 +575,29 @@ simulateFwd_seqBay <- function(obsinc, # observed incidence
 				inc.f.hi = inc.f.hi))
 }
 
+simulateFwd_GGM <- function(fit, horiz.fcast,obsinc){
+	
+	tvec <- 1:(length(obsinc)+horiz.fcast)
+	sim.md <- genGrowth.inc(c0=obsinc[1],
+							r = fit[['r.md']],
+							p = fit[['p.md']],
+							tvec = tvec)
+	
+	sim.lo <- genGrowth.inc(c0=obsinc[1],
+							r = fit[['r.ci']][1],
+							p = fit[['p.ci']][1],
+							tvec = tvec)
+	
+	sim.hi <- genGrowth.inc(c0=obsinc[1],
+							r = fit[['r.ci']][2],
+							p = fit[['p.ci']][2],
+							tvec = tvec)
+	
+	return(list(inc.f.m  = sim.md,
+				inc.f.lo = sim.lo,
+				inc.f.hi = sim.hi))
+}
+
 simulateFwd_RESuDe <- function(FIT, 
 							   horiz.fcast,
 							   GI_span){
@@ -632,8 +675,9 @@ simulateFwd_SEmInRdet <- function(prm.fitted, prm.fxd, cival) {
 ### - - - -   FORECASTS   - - - - 
 ### - - - - - - - - - - - - - - - - -
 
+### FORECAST INCIDENCE WITH A CHOICE OF MODELS
+###
 fcast_incidence <- function(prms, do.plot=FALSE){
-	### FORECAST INCIDENCE WITH A CHOICE OF MODELS
 	
 	unpack.prm(prms)
 	
@@ -647,8 +691,9 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		fit <- fit.renewal(prms)	
 	} 
 	if(model %in% "SeqBay") fit <- fit.seqBay(prms)
+	if(model == 'GGM')      fit <- fit.GGM(prms)
 	if(model == "RESuDe")   fit <- fit.resude(prms)
-	if(model== "SEmInRdet") {
+	if(model == "SEmInRdet") {
 		seminr.fit.type <- 'ABC'  # 'mle' or 'ABC'
 		fit <- fit.SEmInRdet(prms,fit.type = seminr.fit.type)
 	}
@@ -666,11 +711,15 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		GI.dist <- gitmp[["GI.dist"]]
 		g       <- gitmp[["g"]]
 	}
-	if(model=="RESuDe"){
+	if(model == "RESuDe"){
 		R    <- fit$prm.sample$R0
 		R.lo <- quantile(R,probs = 0.5-CI/2)
 		R.hi <- quantile(R,probs = 0.5+CI/2)
 		R.m  <- median(R)
+	}
+	if(model == 'GGM'){
+		# may have to change that; place holder for now...
+		R <- R.lo <- R.hi <- R.m <- fit[['r.md']]
 	}
 	if(model == 'SEmInRdet'){
 		if(seminr.fit.type=='mle'){
@@ -716,7 +765,10 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		
 		R <- R.m <- R.hi <- R.lo <- sim[["R0"]]
 	}
-	
+	if (model == 'GGM'){
+		sim <- simulateFwd_GGM(fit, horiz.fcast, obsinc = dat$inc)
+	}
+
 	if(model=='RESuDe'){
 		sim <- simulateFwd_RESuDe(FIT = fit,
 								  horiz.fcast = horiz.fcast,
