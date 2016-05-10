@@ -27,7 +27,7 @@ source("scores.R")
 # Models that generated synthetic data:
 syn.models <- list("SEmInR_4")#list("SEmInR", "RESuDe")
 mc.choose <- 3
-single.model.fcast <- 'GGM' #'RESuDe' # 'SEmInRdet'
+single.model.fcast <- 'SEmInRdet' #'RESuDe' # 'SEmInRdet'
 
 # Identify the source names of  synthetic data
 db.path <- "../Datsid/bcktest.db"
@@ -70,7 +70,7 @@ if(!multicores) n.cores <- 1
 
 idx.apply <- mcvec
 message(paste("Synthetic data contains",length(idx.apply),
-			  "MC iterations but only one is used [",mc.choose,"]"))
+			  "MC iterations but only one is used [ mc =",mc.choose,"]"))
 
 if(mc.choose) idx.apply<- mcvec[mc.choose]
 

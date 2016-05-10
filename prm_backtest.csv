@@ -1,7 +1,7 @@
 horizon , 120
 trunc.type,generation
 trunc.date,19
-trunc.gen, 2
+trunc.gen, 3
 horiz.fcast, 5
 GI.bias, 1.0
 n.MC.max, 3

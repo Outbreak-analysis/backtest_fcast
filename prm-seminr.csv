@@ -2,7 +2,7 @@ horizon,150
 nE,5
 nI,5
 init_I1,1
-n.time.steps,500,
+n.time.steps,1000,
 per.capita,0
 ,
 latent_mean,1.5

@@ -454,13 +454,17 @@ fit.SEmInRdet <- function(prms, fit.type){
 	inc.obs  <- dat$inc
 	t.obs    <- 1:length(inc.obs)
 	
+	logparam <- TRUE
+	if(logparam) prm.to.fit <- log(prm.to.fit)
+		
 	if(fit.type == 'mle'){
 		FIT <- fit.mle.SEmInR(prm.to.fit, 
 							  prm.fxd, 
 							  t.obs, 
 							  inc.obs,
-							  method = "SANN", #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",
-							  maxit = 80)
+							  logparam = logparam,
+							  method = "Nelder-Mead", #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",
+							  maxit = 500)
 		
 		
 		prm.fitted <- FIT[['prm.fitted']]
@@ -694,7 +698,7 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	if(model == 'GGM')      fit <- fit.GGM(prms)
 	if(model == "RESuDe")   fit <- fit.resude(prms)
 	if(model == "SEmInRdet") {
-		seminr.fit.type <- 'ABC'  # 'mle' or 'ABC'
+		seminr.fit.type <- 'mle'  # 'mle' or 'ABC'
 		fit <- fit.SEmInRdet(prms,fit.type = seminr.fit.type)
 	}
 	
