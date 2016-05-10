@@ -35,7 +35,7 @@ idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
 
 mydebug <- TRUE
 if(!mydebug) bcktest <- bcktest[as.logical(idx)]
-if(mydebug)  bcktest <- bcktest[c(1,5,10,14)]
+if(mydebug)  bcktest <- bcktest[as.logical(idx[c(1,5,11,14)])]
 
 n.bcktest <- length(bcktest)
 
