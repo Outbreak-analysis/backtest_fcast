@@ -32,8 +32,11 @@ db.path <- "../Datsid/bcktest.db"
 bcktest <- get.list.sources(db.path = db.path)
 idx <- lapply(syn.models, grepl, x = bcktest)
 idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
-# DEBUG bcktest <- bcktest[12:13]
-bcktest <- bcktest[as.logical(idx)]
+
+mydebug <- TRUE
+if(!mydebug) bcktest <- bcktest[as.logical(idx)]
+if(mydebug)  bcktest <- bcktest[c(1,5,10,14)]
+
 n.bcktest <- length(bcktest)
 
 # Read all parameters for backtest 
@@ -44,6 +47,7 @@ read_all_prm()
 ### 
 ### --- Run the backtesting ---
 ### 
+
 sc.tmp <- list()
 for(i in 1:n.bcktest){
 	# Retrieve all synthetic epidemics from a model parameter set:
