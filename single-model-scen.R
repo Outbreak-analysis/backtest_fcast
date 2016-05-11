@@ -25,9 +25,9 @@ source("forecast_utils.R")
 source("scores.R")
 
 # Models that generated synthetic data:
-syn.models <- list("SEmInR_4")#list("SEmInR", "RESuDe")
+syn.models <- list("RESuDe_4")#list("SEmInR", "RESuDe")
 mc.choose <- 3
-single.model.fcast <- 'SEmInRdet' #'RESuDe' # 'SEmInRdet'
+single.model.fcast <- 'RESuDe' #'RESuDe' # 'SEmInRdet'
 
 # Identify the source names of  synthetic data
 db.path <- "../Datsid/bcktest.db"

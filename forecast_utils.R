@@ -1,3 +1,4 @@
+source("../SEmInR/GI_SEmInR.R")
 
 model.colour <- function(model.name){
 	col <- "grey"
@@ -137,17 +138,21 @@ create.model.prm <- function(dat,
 							  horiz.fcast = horiz.fcast,
 							  horizon = horizon,
 							  GI_span = GI_span,
+							  GI_mean = GI.mean,
+							  GI_var  = GI.stdv^2,
+							  alpha   = alph, # <-- 'alph', not 'alpha'!!! see read_all_prm()
+							  kappa   = kapp, # <-- 'kapp', not 'kappa'!!! see read_all_prm()
 							  pop_size = pop_size,
-							  mcmc_iter = mcmc_iter,
-							  mcmc_nchains = mcmc_nchains,
+							  mcmc_iter       = mcmc_iter,
+							  mcmc_nchains    = mcmc_nchains,
 							  mcmc_diagnostic = mcmc_diagnostic)
 				,
 				SEmInRdet = list(model = "SEmInRdet",
 								 dat = dat,
 								 dat.full = dat.full,
 								 horiz.fcast = horiz.fcast,
-								 prm.fxd = SEmInR.prm.fxd,
-								 prm.to.fit = SEmInR.prm.to.fit
+								 prm.fxd     = SEmInR.prm.fxd,
+								 prm.to.fit  = SEmInR.prm.to.fit
 				)
 	)
 	return(PRM)
@@ -266,12 +271,22 @@ get.GI <- function(trueparam){
 	###
 	seir <- sum(grepl('DOL.days',names(trueparam)))
 	if(seir>0) {
-		DOL.true <- trueparam['DOL.days']
-		DOI.true <- trueparam['DOI.days']
-		nI.true <- trueparam['nI']
-		nE.true <- trueparam['nI']
-		GI.mean <- (DOL.true+DOI.true/2/nI.true*(nI.true+1))
-		GI.var <- GI.mean/mean(nI.true,nE.true) # <-- not sure about that!!!
+		DOL.true <- unname(trueparam['DOL.days'])
+		DOI.true <- unname(trueparam['DOI.days'])
+		nI.true  <- unname(trueparam['nI'])
+		nE.true  <- unname(trueparam['nI'])
+		# calculate intrinsic GI:
+		gint <- calc.GI.SEmInR(latent_mean = DOL.true,
+							   infectious_mean = DOI.true,
+							   nE = nE.true,
+							   nI = nI.true,
+							   n.points.GI.crv=20,
+							   horizon= 5*(DOL.true+DOI.true))
+		g   <- gint[['intrinsic']]
+		tg  <- gint[['times']]
+		dtg <- tg[2]-tg[1]
+		GI.mean <- sum(tg*g)*dtg
+		GI.var  <- sum(tg^2*g)*dtg - GI.mean^2
 	}
 	if(seir==0) {
 		GI.mean <- trueparam['GImean']
@@ -333,8 +348,10 @@ read_all_prm <-function(){
 	
 	# RESuDe parameters:
 	fresude         <<- 'prm-resude.csv'
-	GI_span         <<- read_prm(file = fresude, x='GI_span')
+	GI_span         <<- read_prm(fresude,'GI_span')
 	pop_size        <<- read_prm(fresude,'pop_size')
+	alph            <<- read_prm(fresude,'alpha')   ### MUST NAME 'alph', not 'alpha' bc R complains
+	kapp            <<- read_prm(fresude,'kappa')   ### MUST NAME 'kapp', not 'kappa' bc R complains
 	mcmc_iter       <<- read_prm(fresude,'mcmc_iter')
 	mcmc_nchains    <<- read_prm(fresude,'mcmc_nchains')
 	mcmc_diagnostic <<- read_prm(fresude,'mcmc_diagnostic')

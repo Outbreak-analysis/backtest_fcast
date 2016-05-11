@@ -1,6 +1,8 @@
 pop_size , 1e4
 I.init , 1
 GI_span , 20 
-mcmc_iter, 6000
+alpha, 0
+kappa, 0
+mcmc_iter, 9000
 mcmc_nchains, 1
 mcmc_diagnostic,0

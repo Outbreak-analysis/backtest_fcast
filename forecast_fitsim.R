@@ -201,7 +201,8 @@ unpack.prm <- function(prms){
 					"Min.Std.SI", "Max.Std.SI", 
 					"n.coriUnc.meanstdv", "n.coriUnc.postR")
 	
-	pname.resude <- c('pop_size', 'GI_span',
+	pname.resude <- c('pop_size', 'GI_span', 'GI_mean', 'GI_var',
+					  'alpha','kappa',
 					  'mcmc_iter', 'mcmc_nchains','mcmc_diagnostic')
 	
 	pname.seminr <- c('prm.fxd','prm.to.fit')
@@ -402,7 +403,7 @@ fit.resude <- function(prms) {
 	pop_mean <-  pop_size * bias.pop_size
 	pop_lsd  <-  2.0
 	pop_hi <- qlnorm(p=0.99, meanlog = log(pop_mean),sdlog = pop_lsd)
-	pop_lo <- qlnorm(p=0.01, meanlog = log(pop_mean),sdlog = pop_lsd)
+	pop_lo <- qlnorm(p=0.1, meanlog = log(pop_mean),sdlog = pop_lsd)
 	pop_lo <- max(pop_lo,sum(dat.obs)+1)# <-- pop cannot be smaller than cumul incidence!
 	pop_hi <- round(pop_hi,0)
 	pop_lo <- round(pop_lo,0)
@@ -413,23 +414,19 @@ fit.resude <- function(prms) {
 					  Iobs     = dat.obs,
 					  R0_lo    = 0.7,
 					  R0_hi    = 10,
-					  GI_meanlo= 1,
-					  GI_meanhi= 15,
-					  GI_varhi = 4,
-					  GI_varlo = 2,
-					  alpha_hi = 4, #alpha*1.001,
-					  alpha_lo = 0, #alpha*0.999,
-					  kappa_hi = 0.1,
-					  kappa_lo = 0,
+					  GI_span  = GI_span,
+					  GI_mean  = GI_mean,
+					  GI_var   = GI_var,
+					  alpha    = 0,
+					  kappa    = 0,
 					  pop_hi   = pop_hi,
 					  pop_lo   = pop_lo, 
 					  pop_mean = pop_mean,
-					  pop_lsd  = pop_lsd,
-					  GI_span  = GI_span
+					  pop_lsd  = pop_lsd # log stddev
 	)
 	
 	# Fit RESuDe model using Stan:
-	FIT <- RESuDe.fit.stan(model.filename = 'fit-resude.stan', 
+	FIT <- RESuDe.fit.stan(model.filename = 'fit-resude-light.stan', 
 						   dat      = data.stan, 
 						   n.iter   = mcmc_iter, 
 						   n.chains = mcmc_nchains,
@@ -456,7 +453,7 @@ fit.SEmInRdet <- function(prms, fit.type){
 	
 	logparam <- TRUE
 	if(logparam) prm.to.fit <- log(prm.to.fit)
-		
+	
 	if(fit.type == 'mle'){
 		FIT <- fit.mle.SEmInR(prm.to.fit, 
 							  prm.fxd, 
@@ -501,7 +498,7 @@ fit.SEmInRdet <- function(prms, fit.type){
 							  nABC = 1E4, post.prop=0.01)
 		return(FIT)
 	}
-
+	
 }
 
 
@@ -534,10 +531,10 @@ setup_GI_renewal <- function(model,GI, R){
 	return(list(g=g, GI.dist=GI.dist))
 }
 
-simulateFwd_renewal <- function(obsinc, # observed incidence
-								g,
-								R.m,R.lo,R.hi,
-								horiz.fcast){
+simFwd_renewal <- function(obsinc, # observed incidence
+						   g,
+						   R.m,R.lo,R.hi,
+						   horiz.fcast){
 	
 	inc.f.m <- inc.f.lo <- inc.f.hi <- obsinc
 	n.i <- length(inc.f.m)
@@ -560,10 +557,10 @@ simulateFwd_renewal <- function(obsinc, # observed incidence
 				inc.f.hi=inc.f.hi))
 }
 
-simulateFwd_seqBay <- function(obsinc, # observed incidence
-							   GI,
-							   R.m,R.lo,R.hi,
-							   horiz.fcast){
+simFwd_seqBay <- function(obsinc, # observed incidence
+						  GI,
+						  R.m,R.lo,R.hi,
+						  horiz.fcast){
 	# Apply the formula I(t+h) = exp(h*gamma(R-1))*I(t)
 	# from Bettencourt 2008 PLoS ONE
 	n.i <- length(obsinc)
@@ -579,7 +576,7 @@ simulateFwd_seqBay <- function(obsinc, # observed incidence
 				inc.f.hi = inc.f.hi))
 }
 
-simulateFwd_GGM <- function(fit, horiz.fcast,obsinc){
+simFwd_GGM <- function(fit, horiz.fcast,obsinc){
 	
 	tvec <- 1:(length(obsinc)+horiz.fcast)
 	sim.md <- genGrowth.inc(c0=obsinc[1],
@@ -602,25 +599,28 @@ simulateFwd_GGM <- function(fit, horiz.fcast,obsinc){
 				inc.f.hi = sim.hi))
 }
 
-simulateFwd_RESuDe <- function(FIT, 
-							   horiz.fcast,
-							   GI_span){
+simFwd_RESuDe <- function(FIT, 
+						  horiz.fcast,
+						  GI_span, GI_mean, GI_var, 
+						  alpha,
+						  kappa){
 	
 	obs.inc <- FIT$prm.sample$Iout[1,]
 	last.obs <- length(obs.inc)
 	
-	FCAST <- RESuDe.forecast(prm = FIT$prm.sample, # <-- sampled parameter values after the fit
-							 fcast.horizon = horizon,
-							 pop_size = NULL,
-							 kappa = NULL, 
-							 alpha = NULL,
-							 GI_var= NULL,
-							 GI_span = GI_span, 
-							 last.obs = last.obs,
-							 syn.inc.full = NULL, 
-							 do.plot = FALSE,
-							 CI1 = 50, CI2 = 95,
-							 seed=123)
+	FCAST <- RESuDe.forecast.light(prm = FIT$prm.sample, # <-- sampled parameter values after the fit
+								   fcast.horizon = horizon,
+								   alpha = alpha,
+								   kappa = kappa, 
+								   GI_span = GI_span, 
+								   GI_mean = GI_mean,
+								   GI_var  = GI_var,
+								   last.obs = last.obs,
+								   nmax = 500,
+								   syn.inc.full = NULL, 
+								   do.plot = FALSE,
+								   CI1 = 50, CI2 = 95,
+								   seed=123)
 	
 	inc.f.m  <- FCAST$fcast.cone[,3]
 	inc.f.lo <- FCAST$fcast.cone[,1]
@@ -639,7 +639,7 @@ simulateFwd_RESuDe <- function(FIT,
 }
 
 
-simulateFwd_SEmInRdet <- function(prm.fitted, prm.fxd, cival) {
+simFwd_SEmInRdet <- function(prm.fitted, prm.fxd, cival) {
 	
 	# Simulate forward with fitted data (point estimate):
 	sim.fit  <- simul.SEmInR.det(prm.fitted, prm.fxd)
@@ -672,7 +672,7 @@ simulateFwd_SEmInRdet <- function(prm.fitted, prm.fxd, cival) {
 	return(list(inc.f.m  = inc.best,
 				inc.f.lo = inc.ci.lo,
 				inc.f.hi = inc.ci.hi
-				))
+	))
 }
 
 ### - - - - - - - - - - - - - - - - -
@@ -747,14 +747,14 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	n.i <- length(inc.f.m)
 	
 	if(model %in% c("WalLip","WhiPag") || grepl("Cori",model)){
-		sim <- simulateFwd_renewal(obsinc = dat$inc, # observed incidence
-								   g,
-								   R.m, R.lo, R.hi,
-								   horiz.fcast)
+		sim <- simFwd_renewal(obsinc = dat$inc, # observed incidence
+							  g,
+							  R.m, R.lo, R.hi,
+							  horiz.fcast)
 	}
 	if(model %in% c("SeqBay")){
-		sim <- simulateFwd_seqBay(obsinc = dat$inc, 
-								  GI, R.m, R.lo, R.hi, horiz.fcast)
+		sim <- simFwd_seqBay(obsinc = dat$inc, 
+							 GI, R.m, R.lo, R.hi, horiz.fcast)
 	}
 	
 	if (model=="IDEA") {
@@ -770,19 +770,23 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 		R <- R.m <- R.hi <- R.lo <- sim[["R0"]]
 	}
 	if (model == 'GGM'){
-		sim <- simulateFwd_GGM(fit, horiz.fcast, obsinc = dat$inc)
+		sim <- simFwd_GGM(fit, horiz.fcast, obsinc = dat$inc)
 	}
-
+	
 	if(model=='RESuDe'){
-		sim <- simulateFwd_RESuDe(FIT = fit,
-								  horiz.fcast = horiz.fcast,
-								  GI_span = GI_span)
+		sim <- simFwd_RESuDe(FIT = fit,
+							 horiz.fcast = horiz.fcast,
+							 GI_span = GI_span,
+							 GI_mean = GI_mean, 
+							 GI_var  = GI_var,
+							 alpha   = alpha, 
+							 kappa   = kappa)
 	}
 	
 	if(model == "SEmInRdet"){
 		if(seminr.fit.type=='mle'){
 			prm.fitted <- fit$fit[['prm.fitted']]
-			sim <- simulateFwd_SEmInRdet(prm.fitted,prm.fxd,fit$cival)
+			sim <- simFwd_SEmInRdet(prm.fitted,prm.fxd,fit$cival)
 		}
 		if(seminr.fit.type=='ABC'){
 			postinc <- post.incidence(fit[['posteriors']], CI)
