@@ -142,7 +142,6 @@ create.model.prm <- function(dat,
 							  GI_var  = GI.stdv^2,
 							  alpha   = alph, # <-- 'alph', not 'alpha'!!! see read_all_prm()
 							  kappa   = kapp, # <-- 'kapp', not 'kappa'!!! see read_all_prm()
-							  pop_size = pop_size,
 							  mcmc_iter       = mcmc_iter,
 							  mcmc_nchains    = mcmc_nchains,
 							  mcmc_diagnostic = mcmc_diagnostic)
@@ -334,7 +333,7 @@ read_prm <- function(file,x){
 	as.numeric(as.character(f[trimws(as.character(f[,1]))==x,2]))
 }
 
-read_all_prm <-function(){
+read_technical_prm <-function(){
 	# Backtesting Parameters 
 	fpb            <<- 'prm_backtest.csv'
 	horizon        <<- read_prm(fpb,'horizon') 
@@ -349,7 +348,6 @@ read_all_prm <-function(){
 	# RESuDe parameters:
 	fresude         <<- 'prm-resude.csv'
 	GI_span         <<- read_prm(fresude,'GI_span')
-	pop_size        <<- read_prm(fresude,'pop_size')
 	alph            <<- read_prm(fresude,'alpha')   ### MUST NAME 'alph', not 'alpha' bc R complains
 	kapp            <<- read_prm(fresude,'kappa')   ### MUST NAME 'kapp', not 'kappa' bc R complains
 	mcmc_iter       <<- read_prm(fresude,'mcmc_iter')
@@ -359,23 +357,34 @@ read_all_prm <-function(){
 	# SEmInR parameters:
 	fseminr      <<- 'prm-seminr.csv'
 	horizon      <<- read_prm(fseminr, 'horizon')
-	nE           <<- read_prm(fseminr, 'nE')
-	nI           <<- read_prm(fseminr, 'nI')
+
 	init_I1      <<- read_prm(fseminr, 'init_I1')
 	n.time.steps <<- read_prm(fseminr, 'n.time.steps')
 	per.capita   <<- read_prm(fseminr, 'per.capita')
+}
+
+set_true_param_for_not_fitted <- function(trueparam){
 	
-	latent_mean       <<- read_prm(fseminr, 'latent_mean')
-	infectious_mean   <<- read_prm(fseminr, 'infectious_mean')
-	popSize           <<- read_prm(fseminr, 'popSize')
-	R0                <<- read_prm(fseminr, 'R0')
-	
-	SEmInR.prm.to.fit <<- c(
+	### WARNING: read_technical_prm() must be called BEFORE!
+
+	seir <- sum(grepl('DOL.days',names(trueparam)))
+	if(seir>0) {
+		nE           <<- trueparam[['nE']]
+		nI           <<- trueparam[['nI']]
+		latent_mean      <<- GI.bias * trueparam[['DOL.days']]
+		infectious_mean  <<- GI.bias * trueparam[['DOI.days']]
+	}
+	if(seir==0){
+		# Unfortunately, there is no unique way to set these parameters...
+		# (set DOI=DOL)
+		nE <<- 5
+		nI <<- 5
+		infectious_mean <<- trueparam[['GImean']]/(1+nI/(nI+1))
+		latent_mean <<- infectious_mean
+	}
+	### SEmInR
+	SEmInR.prm.fxd <<- c(
 		infectious_mean = infectious_mean,
-		popSize         = popSize,
-		R0              = R0)
-	
-	SEmInR.prm.fxd <<-  c(
 		latent_mean = latent_mean,
 		horizon     = horizon,
 		nE          = nE,
@@ -383,7 +392,22 @@ read_all_prm <-function(){
 		init_I1     = init_I1,
 		n.time.steps = n.time.steps,
 		per.capita  = per.capita
-	)	
+	)
+	### [ insert initializatons for other models here...]
+}
+
+init.prm.to.fit <- function(x) {
+	### Initialization for minimization algorithms
+	
+	### SEmInR
+	SEmInR.prm.to.fit <<- c(
+		popSize         = x[['SEmInR_popsize_init']],
+		R0              = x[['SEmInR_R0_init']])
+
+	### RESuDe
+	resude.pop.init <<- x[['RESuDe_popsize_init']]
+	
+	### [ insert initializatons for other models here...]
 }
 
 

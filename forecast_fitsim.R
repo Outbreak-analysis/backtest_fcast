@@ -111,7 +111,7 @@ plot.fcast.vs.actual <- function(dat,
 	inc.full <- dat.full$inc[f.rng]
 	title <- "Incidence Forecast vs Actual"
 	if(log){
-		tiny <- 10E-9
+		tiny <- 0.1 #10E-9
 		inc.f.m <- log(inc.f.m+tiny)
 		inc.f.lo <- log(inc.f.lo+tiny)
 		inc.f.hi<- log(inc.f.hi+tiny)
@@ -119,16 +119,16 @@ plot.fcast.vs.actual <- function(dat,
 		inc.full <- log(inc.full+tiny)
 		title <- "LOG Incidence Forecast vs Actual"
 	}
-	plot(x=inc.full,
-		 y=inc.f.m[f.rng],
-		 xlab="Actual incidence", 
-		 ylab="Forecast incidence",
+	plot(x = inc.full,
+		 y = inc.f.m[f.rng],
+		 xlab = "Actual incidence", 
+		 ylab = "Forecast incidence",
 		 main = title,
-		 ylim=range(inc.f.lo[f.rng],inc.f.hi[f.rng],inc.full,na.rm = TRUE),
-		 cex=2,lwd=3)
+		 ylim = range(inc.f.lo[f.rng],inc.f.hi[f.rng],inc.full,na.rm = TRUE),
+		 cex=2,lwd=2)
 	segments(x0=inc.full, x1=inc.full,
 			 y0=inc.f.lo[f.rng], y1=inc.f.hi[f.rng],
-			 lwd=3)
+			 lwd=1)
 	grid()
 	abline(0,1,col="red",lty=2,lwd=2)
 }
@@ -169,6 +169,16 @@ plot.all <- function(model,
 						 inc.f.lo,
 						 inc.f.hi,
 						 log=TRUE)
+	# Focus on the fit
+	n2 <- nrow(dat)+1
+	plot.fcast(model  = model,
+			   Restim = Restim,
+			   dat = dat,
+			   inc.f.m  = inc.f.m[1:n2],
+			   inc.f.lo = inc.f.lo[1:n2],
+			   inc.f.hi = inc.f.hi[1:n2],
+			   dat.full = NULL,
+			   log=FALSE)
 }
 
 
@@ -332,7 +342,7 @@ fit.GGM <- function(prms){
 				  p = 0.9)
 	
 	fit <- estimate.CI(dat          = dat, 
-					   CIwidth      = 0.5,
+					   CIwidth      = 0.95,
 					   n.MC         = 200,
 					   prm.init     = prm.init, 
 					   relative.err = FALSE)
@@ -397,17 +407,14 @@ fit.resude <- function(prms) {
 	dat.obs  <- dat$inc
 	last.obs <- length(dat.obs)
 	
-	# Effective population bias:
-	bias.pop_size <- 1.0
 	# effective population bounds:
-	pop_mean <-  pop_size * bias.pop_size
+	pop_mean <-  resude.pop.init
 	pop_lsd  <-  2.0
 	pop_hi <- qlnorm(p=0.99, meanlog = log(pop_mean),sdlog = pop_lsd)
 	pop_lo <- qlnorm(p=0.1, meanlog = log(pop_mean),sdlog = pop_lsd)
 	pop_lo <- max(pop_lo,sum(dat.obs)+1)# <-- pop cannot be smaller than cumul incidence!
 	pop_hi <- round(pop_hi,0)
 	pop_lo <- round(pop_lo,0)
-	message(paste("\n\nEffective pop size:",pop_lo,"--",pop_mean,"--",pop_hi))
 	
 	# Define Stan's known data:
 	data.stan <- list(numobs   = last.obs,
@@ -424,6 +431,8 @@ fit.resude <- function(prms) {
 					  pop_mean = pop_mean,
 					  pop_lsd  = pop_lsd # log stddev
 	)
+	print("RESuDe parameter before Stan fit:")
+	print(data.stan)
 	
 	# Fit RESuDe model using Stan:
 	FIT <- RESuDe.fit.stan(model.filename = 'fit-resude-light.stan', 
@@ -444,6 +453,20 @@ fit.resude <- function(prms) {
 	return(FIT)
 }
 
+rough.R0 <- function(inc.obs){
+	# Uses R0 ~ 1 / sum(exp(-r*t)*g(t)) 
+	n <- length(inc.obs)
+	t.obs <- 1:n # assumes regular observations
+	loginc <- log(inc.obs)
+	lminc <- lm(loginc~t.obs)
+	r <- lminc$coefficients[2]
+	ngi <- min(n,1)
+	gi <- 1/ngi # uniform generation interval distribution :-\
+	roughR0 <- sum(exp(-r*t.obs[1:ngi])*gi)
+	return(roughR0)
+}
+
+
 fit.SEmInRdet <- function(prms, fit.type){
 	
 	# unpack paramters:
@@ -451,10 +474,13 @@ fit.SEmInRdet <- function(prms, fit.type){
 	inc.obs  <- dat$inc
 	t.obs    <- 1:length(inc.obs)
 	
-	logparam <- TRUE
-	if(logparam) prm.to.fit <- log(prm.to.fit)
 	
 	if(fit.type == 'mle'){
+		print('DEBUG: SEmInR mle fit with inital values:')
+		print(prm.to.fit)
+		logparam <- TRUE
+		if(logparam) prm.to.fit <- log(prm.to.fit)
+		# minimization:
 		FIT <- fit.mle.SEmInR(prm.to.fit, 
 							  prm.fxd, 
 							  t.obs, 
@@ -463,9 +489,10 @@ fit.SEmInRdet <- function(prms, fit.type){
 							  method = "Nelder-Mead", #"SANN",# "CG",# "Nelder-Mead",#'SANN',#"L-BFGS-B",
 							  maxit = 500)
 		
-		
 		prm.fitted <- FIT[['prm.fitted']]
 		llkmin     <- FIT[['llkmin']]    
+		print('DEBUG: SEmInR mle fitted values:')
+		print(prm.fitted)
 		
 		# Try to approximate CI value:
 		cival <- CI.llk.sample(CIlevel = 0.95, 
@@ -498,7 +525,6 @@ fit.SEmInRdet <- function(prms, fit.type){
 							  nABC = 1E4, post.prop=0.01)
 		return(FIT)
 	}
-	
 }
 
 
@@ -817,12 +843,12 @@ fcast_incidence <- function(prms, do.plot=FALSE){
 	
 	#  - - - Plots - - -
 	if (do.plot){
-		par(mfrow=c(3,2))
+		par(mfrow=c(2,3))
 		try(plot.exp.phase(dat),silent = T)
-		try(plot.GI(g,GI.dist),silent = T)
+		# try(plot.GI(g,GI.dist),silent = T)
 		try(plot.all(model, Restim,dat, dat.full, 
 					 inc.f.m, inc.f.lo, inc.f.hi),
-			silent = T)
+			silent = F)
 	}
 	# Target data (if exists, for testing purpose)
 	target.dat <- NULL

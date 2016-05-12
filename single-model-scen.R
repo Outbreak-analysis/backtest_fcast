@@ -25,9 +25,9 @@ source("forecast_utils.R")
 source("scores.R")
 
 # Models that generated synthetic data:
-syn.models <- list("RESuDe_4")#list("SEmInR", "RESuDe")
+syn.models <- list("RESuDe_2")#list("SEmInR", "RESuDe")
 mc.choose <- 3
-single.model.fcast <- 'RESuDe' #'RESuDe' # 'SEmInRdet'
+single.model.fcast <- 'SEmInRdet' #'RESuDe' # 'SEmInRdet'
 
 # Identify the source names of  synthetic data
 db.path <- "../Datsid/bcktest.db"
@@ -36,11 +36,6 @@ idx <- lapply(syn.models, grepl, x = bcktest)
 idx <- rowSums(matrix(unlist(idx),ncol=length(syn.models)))
 bcktest <- bcktest[as.logical(idx)]
 n.bcktest <- length(bcktest)
-
-# Read all parameters for backtest 
-# and forecasting models
-read_all_prm()
-multicores <- 0
 
 ### 
 ### --- Run the backtesting ---
@@ -53,11 +48,29 @@ dat.all <- get.synthetic.data.db(db.path     = db.path,
 								 eventtype   = 'incidence')
 mcvec <- unique(dat.all$mc)
 source <- dat.all$source[1]
-print(paste(i,"/",n.bcktest,":",source))
+message(paste(i,"/",n.bcktest,":",source))
 # The 'true' parameters that generated these epidemics:
 trueparam  <- get.synthetic.epi.param(source = source)
 GI.mean    <- get.GI(trueparam)['GI.mean']
 GI.stdv    <- sqrt(get.GI(trueparam)['GI.var'])
+
+# Read all parameters for backtest 
+# and forecasting models
+read_technical_prm()
+set_true_param_for_not_fitted(trueparam)
+
+# Initialize starting values
+# for models needing a minimization
+xinit<-vector()
+# Cheating a bit to help convergence
+# on the hundreds different data sets:
+xinit[['SEmInR_R0_init']]      <- runif(1,0.8,1.2) * trueparam[['R0']]
+xinit[['SEmInR_popsize_init']] <- runif(1,0.8,1.2) * trueparam[['pop.size']]
+xinit[['RESuDe_popsize_init']] <- runif(1,0.8,1.2) * trueparam[['pop.size']]
+init.prm.to.fit(xinit)
+
+multicores <- 0
+
 
 # Find time (after start date) 
 # to truncate full data (to make forecasts):

@@ -39,11 +39,6 @@ if(mydebug)  bcktest <- bcktest[c(1,5,11,14)]
 
 n.bcktest <- length(bcktest)
 
-# Read all parameters for backtest 
-# and forecasting models
-read_all_prm()
-
-
 ### 
 ### --- Run the backtesting ---
 ### 
@@ -61,6 +56,22 @@ for(i in 1:n.bcktest){
 	trueparam  <- get.synthetic.epi.param(source = source)
 	GI.mean    <- get.GI(trueparam)['GI.mean']
 	GI.stdv    <- sqrt(get.GI(trueparam)['GI.var'])
+	
+	
+	# Read all parameters for backtest 
+	# and forecasting models
+	read_technical_prm()
+	set_true_param_for_not_fitted(trueparam)
+	
+	# Initialize starting values
+	# for models needing a minimization
+	xinit<-vector()
+	# Cheating a bit to help convergence
+	# on the hundreds different data sets:
+	xinit[['SEmInR_R0_init']] <- runif(1,0.8,1.2) * trueparam[['R0']]
+	xinit[['SEmInR_popsize_init']] <- runif(1,0.8,1.2) * trueparam[['pop.size']]
+	xinit[['RESuDe_popsize_init']] <- runif(1,0.8,1.2) * trueparam[['pop.size']]
+	init.prm.to.fit(xinit)
 	
 	# Find time (after start date) 
 	# to truncate full data (to make forecasts):

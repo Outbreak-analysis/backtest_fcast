@@ -4,8 +4,3 @@ nI,5
 init_I1,1
 n.time.steps,1000,
 per.capita,0
-,
-latent_mean,1.5
-infectious_mean, 2
-popSize, 1000000,
-R0, 1.555
