@@ -108,7 +108,6 @@ for(i in 1:n.bcktest){
 							 GI.stdv           = GI.stdv,
 							 cori.window       = cori.window,
 							 GI_span           = GI_span,
-							 #pop_size          = trueparam[['pop.size']],
 							 mcmc_iter         = mcmc_iter,
 							 mcmc_nchains      = mcmc_nchains,
 							 mcmc_diagnostic   = mcmc_diagnostic,
