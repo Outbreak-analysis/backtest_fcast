@@ -8,7 +8,7 @@ This repo assumes the following repos are cloned in sister directories as this o
  
 * [Datsid](https://github.com/Outbreak-analysis/Datsid): Database of infectious series time series 
 * [RESuDe](https://github.com/davidchampredon/RESuDe_forecast): Model implementing a renewal equation with susceptible depletion
-* [SEmInR](https://github.com/davidchampredon/SEmInR): Model implementing a stochastic compartmental model SEmInR
+* [SEmInR](https://github.com/davidchampredon/SEmInR): Model implementing a deterministic compartmental model SEmInR
 
 This repo is still a work in progress... contact David Champredon for any questions.
 
