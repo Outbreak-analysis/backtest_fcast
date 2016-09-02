@@ -83,7 +83,7 @@ create.model.prm <- function(dat,
 							 GI.dist,
 							 cori.window,
 							 GI_span,
-							 pop_size,
+							 #pop_size,
 							 mcmc_iter,
 							 mcmc_nchains,
 							 mcmc_diagnostic,
@@ -161,10 +161,11 @@ fcast.wrap.mc <- function(m, dat.all,
 						  ttrunc,
 						  horizon,
 						  horiz.fcast,
-						  GI.mean,GI.stdv,
+						  GI.mean,
+						  GI.stdv,
 						  cori.window,
 						  GI_span,
-						  pop_size,
+						  #pop_size,
 						  mcmc_iter,
 						  mcmc_nchains,
 						  mcmc_diagnostic,
@@ -187,21 +188,21 @@ fcast.wrap.mc <- function(m, dat.all,
 	dat.chopped <- subset(dat.no.trunc, tb <= ttrunc)
 	
 	# Set parameters for every models:
-	PRM <- create.model.prm(dat      = dat.chopped,
-							dat.full = dat.no.trunc,
-							horizon  = horizon,
-							horiz.fcast = horiz.fcast,  
-							GI.mean = as.numeric(GI.mean), 
-							GI.stdv = as.numeric(GI.stdv),
-							GI.dist =  "gamma",
-							cori.window = cori.window,
-							GI_span = GI_span,
-							pop_size = pop_size,
-							mcmc_iter = mcmc_iter,
-							mcmc_nchains = mcmc_nchains,
-							mcmc_diagnostic = mcmc_diagnostic,
-							SEmInR.prm.fxd = SEmInR.prm.fxd,
-							SEmInR.prm.to.fit = SEmInR.prm.to.fit)
+	PRM <- create.model.prm(dat                = dat.chopped,
+							dat.full           = dat.no.trunc,
+							horizon            = horizon,
+							horiz.fcast        = horiz.fcast,  
+							GI.mean            = as.numeric(GI.mean), 
+							GI.stdv            = as.numeric(GI.stdv),
+							GI.dist            = "gamma",
+							cori.window        = cori.window,
+							GI_span            = GI_span,
+							#pop_size           = pop_size,
+							mcmc_iter          = mcmc_iter,
+							mcmc_nchains       = mcmc_nchains,
+							mcmc_diagnostic    = mcmc_diagnostic,
+							SEmInR.prm.fxd     = SEmInR.prm.fxd,
+							SEmInR.prm.to.fit  = SEmInR.prm.to.fit)
 	
 	# Forecast:
 	
@@ -380,7 +381,7 @@ set_true_param_for_not_fitted <- function(trueparam){
 		nE <<- 5
 		nI <<- 5
 		infectious_mean <<- trueparam[['GImean']]/(1+nI/(nI+1))
-		latent_mean <<- infectious_mean
+		latent_mean     <<- infectious_mean
 	}
 	### SEmInR
 	SEmInR.prm.fxd <<- c(
